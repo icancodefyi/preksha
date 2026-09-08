@@ -1,26 +1,853 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Alliance No.1";
+  src: url("/fonts/AllianceNo1-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Alliance No.2";
+  src: url("/fonts/AllianceNo2-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --preksha-bg: #ffffff;
+  --preksha-ink: #0f0f10;
+  --preksha-muted: #5a5a5a;
+  --preksha-line: #e5e5e5;
+  --preksha-line-strong: #0f0f10;
+  --preksha-dark: #070708;
+  --preksha-dark-soft: #101013;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+html {
+  scroll-behavior: smooth;
+}
+
+html,
+body {
+  background: var(--preksha-bg);
+  color: var(--preksha-ink);
+  font-family: "Alliance No.2", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: #0f0f10;
+  color: #ffffff;
+}
+
+.land-h1,
+.land-h2,
+.land-h3,
+.land-display {
+  font-family: "Alliance No.1", sans-serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.land-h1 {
+  font-size: clamp(2rem, 4.5vw, 3.5rem);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+}
+
+.land-h3 {
+  font-size: clamp(1.4rem, 2.4vw, 2rem);
+  line-height: 1.15;
+}
+
+.land-sub {
+  font-size: clamp(1rem, 1.6vw, 1.25rem);
+  line-height: 1.55;
+  color: var(--preksha-muted);
+}
+
+.land-eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.land-section {
+  padding: clamp(4rem, 9vw, 8rem) clamp(1.25rem, 6vw, 6rem);
+  scroll-margin-top: 4rem;
+}
+
+.land-edge {
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.land-rule {
+  height: 1px;
+  background: var(--preksha-line);
+  border: 0;
+  margin: 0;
+}
+
+/* ============================================================
+   NAV — modern, centered
+   ============================================================ */
+.land-nav {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 1rem clamp(1.25rem, 6vw, 4rem);
+  background: rgba(7, 7, 8, 0.65);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background 0.3s ease;
+}
+
+.land-nav.is-scrolled {
+  background: rgba(7, 7, 8, 0.92);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.land-nav-brand {
+  justify-self: start;
+}
+
+.land-nav-wordmark {
+  display: inline-block;
+  position: relative;
+  text-decoration: none;
+  color: #ffffff;
+  font-family: "Alliance No.1", sans-serif;
+  letter-spacing: 0.3em;
+  font-size: 1.02rem;
+  transition: color 0.2s ease;
+}
+
+.land-nav-wordmark::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -0.35rem;
+  height: 1px;
+  background: #ffffff;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+
+.land-nav-wordmark:hover::after {
+  transform: scaleX(1);
+}
+
+.land-nav-links {
+  justify-self: center;
+  display: none;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.32rem 0.4rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+}
+
+@media (min-width: 900px) {
+  .land-nav-links {
+    display: flex;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.land-nav-link {
+  color: rgba(255, 255, 255, 0.74);
+  text-decoration: none;
+  font-size: 0.86rem;
+  padding: 0.5rem 1.05rem;
+  border-radius: 999px;
+  position: relative;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.land-nav-link:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.land-nav-cta {
+  justify-self: end;
+  color: #ffffff;
+}
+
+.land-nav-cta .land-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.land-nav-cta .land-btn:hover {
+  background: #ffffff;
+  color: var(--preksha-ink);
+}
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.land-btn {
+  display: inline-block;
+  border: 1px solid var(--preksha-ink);
+  border-radius: 999px;
+  color: var(--preksha-ink);
+  background: transparent;
+  text-decoration: none;
+  font-size: 0.95rem;
+  padding: 0.72rem 1.6rem;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.land-btn:hover {
+  background: var(--preksha-ink);
+  color: #ffffff;
+}
+
+.land-btn-light {
+  background: #ffffff;
+  color: var(--preksha-ink);
+  border-color: #ffffff;
+  font-weight: 700;
+}
+
+.land-btn-light:hover {
+  background: #d9d9db;
+  color: var(--preksha-ink);
+  border-color: #d9d9db;
+}
+
+.land-btn-ghost {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.land-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+/* ============================================================
+   HERO — dark, bold, fully visible
+   ============================================================ */
+.land-hero {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+  background: var(--preksha-dark);
+}
+
+.land-hero-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.85;
+}
+
+.land-hero-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 80% at 50% 36%, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 0.05) 50%, rgba(0, 0, 0, 0.4) 100%),
+    linear-gradient(180deg, rgba(7, 7, 8, 0.55) 0%, rgba(7, 7, 8, 0.05) 24%, rgba(7, 7, 8, 0.05) 66%, rgba(7, 7, 8, 0.8) 100%);
+}
+
+.land-hero-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: clamp(2.5rem, 7vh, 5rem) 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.6rem;
+}
+
+.land-hero-eyebrow {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+}
+
+.land-hero-title {
+  font-family: "Alliance No.1", sans-serif;
+  font-weight: 700;
+  font-synthesis-weight: auto;
+  color: #ffffff;
+  font-size: clamp(1.9rem, 5vw, 3.4rem);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.45),
+    0 2px 44px rgba(0, 0, 0, 0.55);
+  max-width: 20em;
+}
+
+.land-hero-sub {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: clamp(1.05rem, 1.9vw, 1.35rem);
+  line-height: 1.6;
+  max-width: 38rem;
+  margin: 0;
+  text-shadow: 0 1px 20px rgba(0, 0, 0, 0.6);
+}
+
+.land-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+.land-scroll-hint {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: 2rem;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.72rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.land-scroll-hint::after {
+  content: "↓";
+  display: block;
+  margin-top: 0.4rem;
+  animation: land-bob 1.8s ease-in-out infinite;
+}
+
+@keyframes land-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(6px);
+    opacity: 1;
+  }
+}
+
+/* ============================================================
+   SECTION HEADING ROW
+   ============================================================ */
+.land-sec-head {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: end;
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+@media (min-width: 900px) {
+  .land-sec-head {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.land-sec-head .land-sub {
+  margin: 0;
+}
+
+/* ============================================================
+   CAROUSEL — big horizontal slides
+   ============================================================ */
+.land-carousel {
+  max-width: 1240px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.land-carousel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.4rem;
+}
+
+.land-carousel-arrows {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.land-carousel-arrow {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  border: 1px solid var(--preksha-line);
+  background: #ffffff;
+  color: var(--preksha-ink);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.land-carousel-arrow:hover {
+  background: var(--preksha-ink);
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.land-carousel-track {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  padding-bottom: 0.25rem;
+}
+
+.land-carousel-track::-webkit-scrollbar {
+  display: none;
+}
+
+.land-carousel-slide {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f0f0f0;
+  isolation: isolate;
+  cursor: pointer;
+}
+
+.land-carousel-media {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+
+.land-carousel-slide:hover .land-carousel-media {
+  transform: scale(1.03);
+}
+
+.land-carousel-tag {
+  position: absolute;
+  top: 1.1rem;
+  left: 1.1rem;
+  z-index: 2;
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #ffffff;
+  background: rgba(7, 7, 8, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.land-carousel-slide:hover .land-carousel-tag {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.land-carousel-meta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  padding: 2.6rem 1.6rem 1.4rem;
+  background: linear-gradient(180deg, rgba(7, 7, 8, 0) 0%, rgba(7, 7, 8, 0.78) 100%);
+  color: #ffffff;
+}
+
+.land-carousel-title {
+  font-family: "Alliance No.1", sans-serif;
+  font-size: clamp(1.35rem, 2.6vw, 2rem);
+  margin: 0 0 0.45rem;
+}
+
+.land-carousel-desc {
+  margin: 0;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.78);
+  max-width: 34rem;
+}
+
+.land-carousel-index {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 0.74rem;
+  letter-spacing: 0.26em;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 0.7rem;
+}
+
+.land-carousel-index strong {
+  color: #ffffff;
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+
+.land-carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 1.4rem;
+}
+
+.land-carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: 0;
+  background: #c9c9cc;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.2s ease, width 0.25s ease;
+}
+
+.land-carousel-dot.is-active {
+  background: var(--preksha-ink);
+  width: 26px;
+}
+
+.land-carousel-seeall {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: "Alliance No.2", sans-serif;
+  font-size: 0.9rem;
+  color: var(--preksha-ink);
+  border-bottom: 1px solid var(--preksha-ink);
+  padding-bottom: 0.15rem;
+  transition: opacity 0.2s ease;
+}
+
+.land-carousel-seeall:hover {
+  opacity: 0.6;
+}
+
+/* ============================================================
+   CAPABILITY ROWS
+   ============================================================ */
+.land-row {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(2rem, 5vw, 4.5rem);
+  align-items: center;
+  padding-top: clamp(3rem, 6vw, 5rem);
+}
+
+@media (min-width: 900px) {
+  .land-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.land-row--flip .land-row-copy {
+  order: 2;
+}
+
+@media (min-width: 900px) {
+  .land-row--flip .land-row-copy {
+    order: 1;
+  }
+  .land-row--flip .land-row-media {
+    order: 2;
+  }
+  .land-row + .land-row {
+    border-top: 1px solid var(--preksha-line);
+  }
+}
+
+.land-row-media {
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f4f4f4;
+  position: relative;
+}
+
+.land-row-media video,
+.land-row-media img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+
+.land-row-media:hover video,
+.land-row-media:hover img {
+  transform: scale(1.04);
+}
+
+.land-row-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.land-row-copy p {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--preksha-muted);
+}
+
+.land-check-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.land-check-list li {
+  display: flex;
+  gap: 0.7rem;
+  font-size: 0.96rem;
+  line-height: 1.55;
+  color: var(--preksha-muted);
+  align-items: baseline;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.land-check-list li::before {
+  content: "—";
+  color: var(--preksha-ink);
+  transition: color 0.2s ease;
+}
+
+.land-check-list li:hover {
+  color: var(--preksha-ink);
+  transform: translateX(6px);
+}
+
+.land-check-list li:hover::before {
+  color: #9c9c9c;
+}
+
+/* ============================================================
+   INDUSTRIES GRID
+   ============================================================ */
+.land-industries {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1px;
+  background: var(--preksha-line);
+  max-width: 1240px;
+  margin: clamp(2.5rem, 6vw, 4rem) auto 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.land-industry {
+  background: #ffffff;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.land-industry::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--preksha-ink);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+
+.land-industry:hover {
+  background: #fafafa;
+}
+
+.land-industry:hover::before {
+  transform: scaleX(1);
+}
+
+.land-industry-title {
+  font-family: "Alliance No.1", sans-serif;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.land-industry-copy {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--preksha-muted);
+  margin: 0;
+}
+
+/* ============================================================
+   FOOTER — modern, giant wordmark at very bottom
+   ============================================================ */
+.land-footer {
+  background: var(--preksha-dark);
+  color: rgba(255, 255, 255, 0.72);
+  padding: 4.5rem clamp(1.25rem, 6vw, 4rem) 0;
+  overflow: hidden;
+}
+
+.land-footer-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.land-footer-top {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3rem;
+}
+
+@media (min-width: 760px) {
+  .land-footer-top {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    align-items: start;
+    justify-content: space-between;
+  }
+}
+
+.land-footer-brand {
+  max-width: 22rem;
+}
+
+.land-footer-brand .land-nav-wordmark {
+  color: #ffffff;
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+
+.land-footer-brand p {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.land-footer-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 2.5rem;
+}
+
+@media (min-width: 760px) {
+  .land-footer-cols {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.land-footer-col h4 {
+  margin: 0 0 0.9rem;
+  font-family: "Alliance No.1", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.land-footer-col a,
+.land-footer-col button {
+  display: block;
+  color: rgba(255, 255, 255, 0.78);
+  text-decoration: none;
+  font-size: 0.9rem;
+  line-height: 2.2;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.land-footer-col a:hover,
+.land-footer-col button:hover {
+  color: #ffffff;
+  transform: translateX(5px);
+}
+
+.land-footer-bottom {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 1.75rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.land-footer-giant {
+  font-family: "Alliance No.1", sans-serif;
+  font-size: clamp(4.5rem, 19vw, 17rem);
+  line-height: 0.85;
+  text-align: center;
+  letter-spacing: -0.03em;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.06) 100%);
+  padding: 1.5rem 0 0.5rem;
+  user-select: none;
+  pointer-events: none;
+  white-space: nowrap;
 }
