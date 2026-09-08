@@ -1,0 +1,316 @@
+[
+  {
+    "key": "rajesh",
+    "name": "Rajesh Kumar",
+    "alias": "RK / R",
+    "role": "Kingpin",
+    "phone": "9821045451",
+    "phone2": "9009010010",
+    "cluster": "core",
+    "city": "Pune",
+    "imei": "351297040615274",
+    "addr": "Flat 204, Sai Residency, Kothrud, Pune",
+    "accounts": [
+      {
+        "bank": "SBI",
+        "acct": "342000108759"
+      }
+    ]
+  },
+  {
+    "key": "sunil",
+    "name": "Sunil Verma",
+    "alias": "Sunnu",
+    "role": "Drug distributor",
+    "phone": "9765322110",
+    "phone2": null,
+    "cluster": "drugs",
+    "city": "Pune",
+    "imei": "861703053302918",
+    "addr": "Yashwant Nagar, Hadapsar, Pune",
+    "accounts": [
+      {
+        "bank": "HDFC",
+        "acct": "5001002897634"
+      }
+    ]
+  },
+  {
+    "key": "imran",
+    "name": "Imran Sheikh",
+    "alias": "Imi",
+    "role": "Drug seller",
+    "phone": "9987033445",
+    "phone2": null,
+    "cluster": "drugs",
+    "city": "Pune",
+    "imei": "352281073666091",
+    "addr": "Malegaon Bhau, Yerawada, Pune",
+    "accounts": [
+      {
+        "bank": "ICICI",
+        "acct": "034001522567"
+      }
+    ]
+  },
+  {
+    "key": "mohammed",
+    "name": "Mohammed Ali",
+    "alias": "Bhai / MA",
+    "role": "Drug courier",
+    "phone": "9890055667",
+    "phone2": null,
+    "cluster": "drugs",
+    "city": "Mumbai",
+    "imei": "864511036118273",
+    "addr": "Dhobi Talao, CSMT, Mumbai",
+    "accounts": [
+      {
+        "bank": "Axis",
+        "acct": "914010032244587"
+      }
+    ]
+  },
+  {
+    "key": "farhan",
+    "name": "Farhan Mistry",
+    "alias": "Farh",
+    "role": "Inter-state courier",
+    "phone": "9284033456",
+    "phone2": null,
+    "cluster": "drugs",
+    "city": "Nagpur",
+    "imei": "868109052733144",
+    "addr": "Itwari Bazaar, Nagpur",
+    "accounts": [
+      {
+        "bank": "PNB",
+        "acct": "713400567812"
+      }
+    ]
+  },
+  {
+    "key": "prakash",
+    "name": "Prakash Khot",
+    "alias": "PK",
+    "role": "Pune contact / watcher",
+    "phone": "9503022345",
+    "phone2": null,
+    "cluster": "drugs",
+    "city": "Pune",
+    "imei": "359255014782033",
+    "addr": "Sadanand Nagar, Chinchwad, Pune",
+    "accounts": []
+  },
+  {
+    "key": "priya",
+    "name": "Priya Nair",
+    "alias": "CA Didi",
+    "role": "Financier (CA)",
+    "phone": "9819077889",
+    "phone2": null,
+    "cluster": "finance",
+    "city": "Pune",
+    "imei": "911500367244810",
+    "addr": "Viman Nagar, Pune",
+    "accounts": [
+      {
+        "bank": "HDFC",
+        "acct": "5001008871902"
+      }
+    ]
+  },
+  {
+    "key": "salim",
+    "name": "Salim Qureshi",
+    "alias": "SQ",
+    "role": "Delhi financier",
+    "phone": "9769099001",
+    "phone2": null,
+    "cluster": "finance",
+    "city": "Delhi",
+    "imei": "864007412199355",
+    "addr": "Jamia Nagar, New Delhi",
+    "accounts": [
+      {
+        "bank": "ICICI",
+        "acct": "034001778432"
+      }
+    ]
+  },
+  {
+    "key": "arun",
+    "name": "Arun Gupta",
+    "alias": "AG",
+    "role": "Ex-bank insider",
+    "phone": "9702188990",
+    "phone2": null,
+    "cluster": "finance",
+    "city": "Nagpur",
+    "imei": "353087065411244",
+    "addr": "Dharampeth, Nagpur",
+    "accounts": [
+      {
+        "bank": "SBI",
+        "acct": "342000903312"
+      }
+    ]
+  },
+  {
+    "key": "neha",
+    "name": "Neha Sharma",
+    "alias": "mule-1",
+    "role": "Mule account operator",
+    "phone": "9967055667",
+    "phone2": null,
+    "cluster": "finance",
+    "city": "Pune",
+    "imei": "911355082733166",
+    "addr": "Kothrud, Pune",
+    "accounts": [
+      {
+        "bank": "SBI",
+        "acct": "342000512184"
+      }
+    ]
+  },
+  {
+    "key": "ramesh",
+    "name": "Ramesh Pawar",
+    "alias": "mule-2",
+    "role": "Mule account operator",
+    "phone": "9850066778",
+    "phone2": null,
+    "cluster": "finance",
+    "city": "Nashik",
+    "imei": "861211047633088",
+    "addr": "College Road, Nashik",
+    "accounts": [
+      {
+        "bank": "BoB",
+        "acct": "2761010089123"
+      }
+    ]
+  },
+  {
+    "key": "kiran",
+    "name": "Kiran More",
+    "alias": "mule-3",
+    "role": "Mule account operator",
+    "phone": "9122077889",
+    "phone2": null,
+    "cluster": "finance",
+    "city": "Satara",
+    "imei": "350154083722111",
+    "addr": "Koregaon Road, Satara",
+    "accounts": [
+      {
+        "bank": "Axis",
+        "acct": "914010066755188"
+      }
+    ]
+  },
+  {
+    "key": "ravi",
+    "name": "Ravi Patel",
+    "alias": "Ravi",
+    "role": "Executor / thief",
+    "phone": "9021011223",
+    "phone2": null,
+    "cluster": "execution",
+    "city": "Thane",
+    "imei": "359255067911388",
+    "addr": "Kopri, Thane West",
+    "accounts": [
+      {
+        "bank": "Kotak",
+        "acct": "4411205981"
+      }
+    ]
+  },
+  {
+    "key": "santosh",
+    "name": "Santosh Yadav",
+    "alias": "SY",
+    "role": "Executor / arms",
+    "phone": "9422022334",
+    "phone2": null,
+    "cluster": "execution",
+    "city": "Thane",
+    "imei": "864409021733800",
+    "addr": "Kalwa, Thane",
+    "accounts": [
+      {
+        "bank": "SBI",
+        "acct": "342000673455"
+      }
+    ]
+  },
+  {
+    "key": "deepak",
+    "name": "Deepak Khanna",
+    "alias": "DK",
+    "role": "Vehicle / logistics",
+    "phone": "9312088990",
+    "phone2": null,
+    "cluster": "execution",
+    "city": "Thane",
+    "imei": "358417010922755",
+    "addr": "Dombivli East, Thane",
+    "accounts": []
+  },
+  {
+    "key": "anita",
+    "name": "Anita Deshpande",
+    "alias": "AD",
+    "role": "Travel / fake IDs",
+    "phone": "9822011234",
+    "phone2": null,
+    "cluster": "execution",
+    "city": "Mumbai",
+    "imei": "913009011733211",
+    "addr": "Dadar West, Mumbai",
+    "accounts": [
+      {
+        "bank": "HDFC",
+        "acct": "5001004450191"
+      }
+    ]
+  },
+  {
+    "key": "bhaskar",
+    "name": "Bhaskar Rao",
+    "alias": "BR",
+    "role": "Gambling app operator",
+    "phone": "9811133445",
+    "phone2": null,
+    "cluster": "gambling",
+    "city": "Delhi",
+    "imei": "861033077164855",
+    "addr": "Karol Bagh, New Delhi",
+    "accounts": [
+      {
+        "bank": "ICICI",
+        "acct": "034001913387"
+      }
+    ]
+  },
+  {
+    "key": "vijay",
+    "name": "Vijay Solanki",
+    "alias": "VJ",
+    "role": "Gambling front-man",
+    "phone": "9833044556",
+    "phone2": null,
+    "cluster": "gambling",
+    "city": "Delhi",
+    "imei": "864401059722110",
+    "addr": "Lajpat Nagar, New Delhi",
+    "accounts": [
+      {
+        "bank": "SBI",
+        "acct": "342000814420"
+      }
+    ]
+  }
+]

@@ -1,0 +1,39 @@
+{
+  "kingpin": {
+    "person": "Rajesh Kumar (9821045451)",
+    "why": "Betweenness-centrality bridge across the four clusters; proceeds converge to his SBI account (T0017, T0027).",
+    "literature": "Cavallaro et al., PLOS ONE 2020 - betweenness centrality strongest disruption metric.",
+    "firs": [
+      "0178/2023",
+      "0451/2023",
+      "0234/2024",
+      "0567/2024",
+      "1105/2025"
+    ]
+  },
+  "hidden_burner": {
+    "what": "9009010010 appears in the Dadar tower dump (MUM-008/009 19:00-21:00) but has NO subscriber record; co-locates with network devices on kidnapping towers PUN-003/008.",
+    "why_significant": "Burner SIMs are where telecom records fail - our model flags number-without-subscriber as a priority lead.",
+    "aligns": "TRACY/EAI 2025 - singling out unknown mobiles in a spatiotemporal crime window"
+  },
+  "money_trail": {
+    "path": "Victims / gambling intake -> Green Leaf Exports -> Nisha Traders -> Priya Nair -> Rajesh Kumar + monthly payoffs to Sunil and Ravi",
+    "why_significant": "Same shell accounts appear in 3 crime types (cyber fraud 0178/2023, gambling 0234/2024, loan fraud 0890/2024) - a multi-crime network.",
+    "crimes": [
+      "0178/2023",
+      "0234/2024",
+      "0890/2024"
+    ]
+  },
+  "cross_case_entities": {
+    "nodes": [
+      "Santosh Yadav in FIR 0932/2023 (vehicle theft) + FIR 1105/2025 (arms)",
+      "Mohammed Ali in FIR 1201/2023 + supply line in FIR 0567/2024"
+    ],
+    "why_significant": "Entity resolution across FIRs merges sparse records into one history - CCTNS keeps them disconnected."
+  },
+  "active_case_link": {
+    "what": "Burner 9890919293 (ransom device, Sept 2025) co-locates on towers PUN-003/008 with Rajesh-network devices; confirmed burn-after-use SIM.",
+    "why_significant": "The today investigation plugs into 2 years of prior intelligence - the demo's core story."
+  }
+}

@@ -1,0 +1,590 @@
+[
+  {
+    "idx": 1,
+    "fir_no": "0178/2023",
+    "year": 2023,
+    "police_station": "Cyber Crime PS, Pune City",
+    "district": "Pune",
+    "state": "Maharashtra",
+    "incident_date": "2023-02-03",
+    "incident_time": "19:42",
+    "registered_date": "2023-02-05",
+    "title": "Phishing / investment fraud - Rs 4,85,000",
+    "category": "cyber-fraud",
+    "sections": [
+      "420 IPC",
+      "66D IT Act"
+    ],
+    "complainant": {
+      "name": "Kavita Deshmukh",
+      "phone": "9850332211",
+      "address": "Kothrud, Pune",
+      "relation": "Complainant"
+    },
+    "accused": [
+      {
+        "name": null,
+        "alias": "Investment broker (unknown)",
+        "description": "Caller posed as SEBI advisor",
+        "status": "unknown"
+      }
+    ],
+    "narrative": "On 03.02.2023 at about 19:42 hours complainant Kavita Deshmukh r/o Kothrud Pune received a call from a person posing as a SEBI registered investment advisor and was induced to download an app named FINSHAKTI with guaranteed returns. Between 03.02.2023 and 04.02.2023 she transferred a total of Rs 4,85,000 in four instalments to a bank account titled Green Leaf Exports, SBI Pune. When her invested amount showed as settled and she attempted withdrawal the app stopped responding. Complaint registered; IPDR and account analysis requisition issued. The credit to Green Leaf Exports was within 4 hours transferred to Nisha Traders (BoB Nashik) and then onward in small tranches to personal accounts in Pune and Delhi.",
+    "entities": {
+      "persons": [
+        "Green Leaf operator",
+        "Nisha Traders account holder"
+      ],
+      "phones": [
+        "9850332211",
+        "9967055667"
+      ],
+      "accounts": [
+        "342000512184",
+        "2761010089123"
+      ],
+      "places": [
+        "Kothrud, Pune"
+      ]
+    },
+    "evidence": {
+      "accounts": [
+        "342000512184",
+        "2761010089123"
+      ],
+      "phones": [
+        "9967055667"
+      ],
+      "app": "FINSHAKTI"
+    },
+    "related_firs": [
+      5,
+      7
+    ]
+  },
+  {
+    "idx": 2,
+    "fir_no": "0451/2023",
+    "year": 2023,
+    "police_station": "Bund Garden PS",
+    "district": "Pune",
+    "state": "Maharashtra",
+    "incident_date": "2023-06-09",
+    "incident_time": "01:20",
+    "registered_date": "2023-06-09",
+    "title": "NDPS seizure - 2.3 kg charas, Sunil Verma arrested",
+    "category": "ndps",
+    "sections": [
+      "8(c) NDPS Act",
+      "20(b)(ii)(A) NDPS Act",
+      "29 NDPS Act"
+    ],
+    "complainant": {
+      "name": "State of Maharashtra (PSO Sundar Patil)",
+      "phone": null,
+      "address": "Bund Garden PS, Pune",
+      "relation": "Police"
+    },
+    "accused": [
+      {
+        "name": "Sunil Verma",
+        "alias": "Sunnu",
+        "description": "Seized 2.3kg charas from scooter, arrested",
+        "status": "arrested"
+      }
+    ],
+    "narrative": "On 08.06.2023 at about 23:45 hours patrolling staff noticed suspicious movement near Bund Garden. On search of accused Sunil Verma of Hadapsar Pune a polythene bag containing 2.3 kg charas and a mobile phone were recovered. Forensic extraction of the recovered phone revealed frequent calls to number 9009010010 and to 9987033445 in the 72 hours preceding the seizure. During interrogation the accused disclosed receiving the consignment from a courier arriving via interstate bus. Sections 8(c), 20(b)(ii)(A) and 29 of NDPS Act applied. CDR and tower data of the recovered phone procured.",
+    "entities": {
+      "persons": [
+        "Sunil Verma"
+      ],
+      "phones": [
+        "9009010010",
+        "9987033445"
+      ],
+      "accounts": [],
+      "places": [
+        "Bund Garden, Pune"
+      ]
+    },
+    "evidence": {
+      "phones": [
+        "9009010010",
+        "9987033445"
+      ],
+      "imeis": [
+        "861703053302918"
+      ]
+    },
+    "related_firs": [
+      6
+    ]
+  },
+  {
+    "idx": 3,
+    "fir_no": "0932/2023",
+    "year": 2023,
+    "police_station": "Kalyan PS",
+    "district": "Thane",
+    "state": "Maharashtra",
+    "incident_date": "2023-08-18",
+    "incident_time": "03:45",
+    "registered_date": "2023-08-19",
+    "title": "Organized vehicle theft - 3 cars recovered, 2 accused",
+    "category": "vehicle-theft",
+    "sections": [
+      "379 IPC",
+      "411 IPC"
+    ],
+    "complainant": {
+      "name": "Dnyaneshwar Bhoir",
+      "phone": "9769004433",
+      "address": "Dombivli East",
+      "relation": "Vehicle owner"
+    },
+    "accused": [
+      {
+        "name": "Ravi Patel",
+        "alias": "Ravi",
+        "description": "Caught driving stolen WagonR",
+        "status": "arrested"
+      },
+      {
+        "name": "Santosh Yadav",
+        "alias": "SY",
+        "description": "Absconding, later arrested",
+        "status": "arrested"
+      }
+    ],
+    "narrative": "Between 17.08.2023 and 18.08.2023 three vehicles (Swift VDI MH-43-X-4421, WagonR MH-05-AX-9087, Eeco MH-04-Q-6633) were stolen from residential parking in Dombivli, Kalyan and Thane. A patrolling party intercepted the stolen WagonR at 03:45 hrs on NH-3; the driver identified as Ravi Patel. Two more vehicles were recovered from a garage associated with accused Deepak Khanna. Santosh Yadav was identified as the break-in operator from CCTV. Number plates of stolen vehicles were to be re-fitted on scrapped vehicles for resale. CDR of the arrested accused revealed a spike in calls among the trio in the 36 hours before the thefts.",
+    "entities": {
+      "persons": [
+        "Ravi Patel",
+        "Santosh Yadav",
+        "Deepak Khanna"
+      ],
+      "phones": [
+        "9021011223",
+        "9422022334",
+        "9312088990"
+      ],
+      "vehicles": [
+        "MH-43-X-4421",
+        "MH-05-AX-9087",
+        "MH-04-Q-6633"
+      ],
+      "places": [
+        "Dombivli, Kalyan, Thane"
+      ]
+    },
+    "evidence": {
+      "phones": [
+        "9021011223",
+        "9422022334",
+        "9312088990"
+      ],
+      "vehicles": [
+        "MH-43-X-4421",
+        "MH-05-AX-9087",
+        "MH-04-Q-6633"
+      ]
+    },
+    "related_firs": [
+      4,
+      8
+    ]
+  },
+  {
+    "idx": 4,
+    "fir_no": "1201/2023",
+    "year": 2023,
+    "police_station": "Dadar PS",
+    "district": "Mumbai",
+    "state": "Maharashtra",
+    "incident_date": "2023-11-14",
+    "incident_time": "20:05",
+    "registered_date": "2023-11-15",
+    "title": "Jewelry store robbery - approx Rs 22 lakh loss",
+    "category": "robbery",
+    "sections": [
+      "392 IPC",
+      "397 IPC"
+    ],
+    "complainant": {
+      "name": "Rajesh Manekchand",
+      "phone": "9820918877",
+      "address": "Dadar West, Mumbai",
+      "relation": "Store owner"
+    },
+    "accused": [
+      {
+        "name": null,
+        "alias": "3 male unknown",
+        "description": "CCTV partial: 3 males in e-masks",
+        "status": "unknown"
+      }
+    ],
+    "narrative": "On 14.11.2023 at about 20:05 hours three masked persons entered Manekchand Jewellers Dadar West, produced country-made pistols and decamped with gold and diamond jewellery valued at approx Rs 22 lakh. CCTV captured partial faces; suspects left on two motorcycles (one black Pulsar). Tower dump of cell sites MUM-008 and MUM-009 for 19:00-21:00 hours was requisitioned. Forensic review later matched the frame of Mohammed Ali and two persons consistent with Ravi Patel and Santosh Yadav (tied to Police Record 0932/2023 Kalyan). A number 9009010010 with no subscriber record was found logged into the same towers during the crime window.",
+    "entities": {
+      "persons": [
+        "Mohammed Ali",
+        "Ravi Patel",
+        "Santosh Yadav"
+      ],
+      "phones": [
+        "9890055667",
+        "9009010010"
+      ],
+      "vehicles": [
+        "black Pulsar"
+      ],
+      "places": [
+        "Dadar West, Mumbai"
+      ]
+    },
+    "evidence": {
+      "towers": [
+        "MUM-008",
+        "MUM-009"
+      ],
+      "phones": [
+        "9009010010",
+        "9890055667",
+        "9021011223",
+        "9422022334"
+      ]
+    },
+    "related_firs": [
+      3,
+      8
+    ]
+  },
+  {
+    "idx": 5,
+    "fir_no": "0234/2024",
+    "year": 2024,
+    "police_station": "Intelligence Fusion & Strategic Ops (IFSO), Delhi",
+    "district": "New Delhi",
+    "state": "Delhi",
+    "incident_date": "2024-02-12",
+    "incident_time": "-",
+    "registered_date": "2024-02-14",
+    "title": "Online gambling app TeenPatti Club - operator identified",
+    "category": "online-gambling",
+    "sections": [
+      "3, 4, 5 Public Gambling Act",
+      "420 IPC",
+      "120B IPC"
+    ],
+    "complainant": {
+      "name": "Collector of Stamps (through I/C IFSO)",
+      "phone": null,
+      "address": "IFSO, Cyber Cell, New Delhi",
+      "relation": "Government"
+    },
+    "accused": [
+      {
+        "name": "Bhaskar Rao",
+        "alias": "BR",
+        "description": "App admin identified via payment rails",
+        "status": "investigated"
+      },
+      {
+        "name": "Vijay Solanki",
+        "alias": "VJ",
+        "description": "Cash-out front-man in Delhi",
+        "status": "investigated"
+      }
+    ],
+    "narrative": "IFSO Delhi traced an illegal sports-betting and card application TeenPatti Club with an estimated 2.1 lakh downloads. Financial rails showed deposits aggregating into accounts of Green Leaf Exports and Nisha Traders - the same shell accounts flagged in Cyber PS Pune FIR 0178/2023 - indicating a common controller. Payouts were re-routed through Pune accounts in the name of Priya Nair before being withdrawn. Call data of the app operator shows regular contact with Pune and Thane numbers. Sections of the Public Gambling Act and 420, 120B IPC applied. This is a Delhi-Pune linked case with a repeat-pattern money trail.",
+    "entities": {
+      "persons": [
+        "Bhaskar Rao",
+        "Vijay Solanki"
+      ],
+      "phones": [
+        "9811133445",
+        "9833044556"
+      ],
+      "accounts": [
+        "342000512184",
+        "2761010089123"
+      ],
+      "places": [
+        "New Delhi",
+        "Pune"
+      ]
+    },
+    "evidence": {
+      "accounts": [
+        "342000512184",
+        "2761010089123"
+      ],
+      "app": "TeenPatti Club",
+      "phones": [
+        "9811133445"
+      ]
+    },
+    "related_firs": [
+      1,
+      7
+    ]
+  },
+  {
+    "idx": 6,
+    "fir_no": "0567/2024",
+    "year": 2024,
+    "police_station": "Yerawada PS",
+    "district": "Pune",
+    "state": "Maharashtra",
+    "incident_date": "2024-09-21",
+    "incident_time": "22:10",
+    "registered_date": "2024-09-22",
+    "title": "NDPS seizure - 620 g charas, Imran Sheikh arrested",
+    "category": "ndps",
+    "sections": [
+      "8(c) NDPS Act",
+      "21(c) NDPS Act",
+      "29 NDPS Act"
+    ],
+    "complainant": {
+      "name": "State of Maharashtra (PSO Ashok Kadam)",
+      "phone": null,
+      "address": "Yerawada PS, Pune",
+      "relation": "Police"
+    },
+    "accused": [
+      {
+        "name": "Imran Sheikh",
+        "alias": "Imi",
+        "description": "Seized 620 g charas in Yerawada",
+        "status": "arrested"
+      }
+    ],
+    "narrative": "Acting on intelligence Yerawada police apprehended Imran Sheikh near Malegaon Bhau bridge with 620 g of charas. The accused has prior association with the accused Sunil Verma of FIR 0451/2023 Bund Garden. Data from his mobile shows regular coordination with number 9284033456 (Farhan Mistry, Nagpur) and brief call bursts with 9009010010 immediately preceding each consignment. On interrogation the accused stated the consignment was to be transported to Mumbai for delivery to Bhai - a description matching Mohammed Ali of Dadar. This FIR establishes the Pune supply line to Mumbai.",
+    "entities": {
+      "persons": [
+        "Imran Sheikh",
+        "Sunil Verma",
+        "Farhan Mistry"
+      ],
+      "phones": [
+        "9284033456",
+        "9009010010",
+        "9821045451"
+      ],
+      "accounts": [],
+      "places": [
+        "Yerawada, Pune",
+        "Malegaon Bhau"
+      ]
+    },
+    "evidence": {
+      "phones": [
+        "9284033456",
+        "9009010010",
+        "9890055667"
+      ]
+    },
+    "related_firs": [
+      2,
+      4
+    ]
+  },
+  {
+    "idx": 7,
+    "fir_no": "0890/2024",
+    "year": 2024,
+    "police_station": "Sadar PS",
+    "district": "Nagpur",
+    "state": "Maharashtra",
+    "incident_date": "2024-07-28",
+    "incident_time": "-",
+    "registered_date": "2024-07-30",
+    "title": "Instant-loan app fraud - 12 victims, bank insider involved",
+    "category": "loan-fraud",
+    "sections": [
+      "420 IPC",
+      "406 IPC",
+      "120B IPC"
+    ],
+    "complainant": {
+      "name": "Multiple (12 aggrieved citizens)",
+      "phone": null,
+      "address": "Nagpur city",
+      "relation": "Victims"
+    },
+    "accused": [
+      {
+        "name": "Arun Gupta",
+        "alias": "AG",
+        "description": "Ex-SBI officer facilitating account opening",
+        "status": "arrested"
+      },
+      {
+        "name": "Priya Nair",
+        "alias": "CA Didi",
+        "description": "Chartered accountant, funds controller",
+        "status": "investigated"
+      }
+    ],
+    "narrative": "Twelve loan-seekers in Nagpur paid processing fees to an instant-loan app totalling Rs 19,40,000 between June and July 2024. The app was reached via SMS links. Investigation revealed bank accounts were opened using KYC documents of unemployed persons, arranged through ex-bank officer Arun Gupta. The collected amounts moved to Pune accounts (Priya Nair, HDFC Viman Nagar) within 48 hours of each deposit. Accounts of Green Leaf Exports again appear in the trail. The modus operandi matches FIR 0178/2023 Pune - same shell network, different crime. Section 406 and 120B applied.",
+    "entities": {
+      "persons": [
+        "Arun Gupta",
+        "Priya Nair"
+      ],
+      "phones": [
+        "9702188990",
+        "9819077889"
+      ],
+      "accounts": [
+        "342000903312",
+        "5001008871902",
+        "342000512184"
+      ],
+      "places": [
+        "Nagpur",
+        "Pune"
+      ]
+    },
+    "evidence": {
+      "accounts": [
+        "342000512184",
+        "5001008871902",
+        "2761010089123"
+      ]
+    },
+    "related_firs": [
+      1,
+      5
+    ]
+  },
+  {
+    "idx": 8,
+    "fir_no": "1105/2025",
+    "year": 2025,
+    "police_station": "Nagothane PS",
+    "district": "Raigad",
+    "state": "Maharashtra",
+    "incident_date": "2025-04-30",
+    "incident_time": "05:15",
+    "registered_date": "2025-04-30",
+    "title": "Arms recovery - 2 country-made pistols, Santosh Yadav arrested",
+    "category": "arms",
+    "sections": [
+      "25(1B)(a) Arms Act",
+      "25(1AA) Arms Act"
+    ],
+    "complainant": {
+      "name": "State of Maharashtra (PSI Rajendra Sawant)",
+      "phone": null,
+      "address": "Nagothane PS, Raigad",
+      "relation": "Police"
+    },
+    "accused": [
+      {
+        "name": "Santosh Yadav",
+        "alias": "SY",
+        "description": "Arrested with 2 pistols and 11 rounds",
+        "status": "arrested"
+      },
+      {
+        "name": null,
+        "alias": "R (contact in phone)",
+        "description": "Stored as R - handler identified",
+        "status": "unknown"
+      }
+    ],
+    "narrative": "At 05:15 hrs a check-point on the Nagothane-Mangaon road stopped a motorcycle; rider Santosh Yadav was found carrying two country-made pistols and 11 live rounds. The accused has a history of organized theft (FIR 0932/2023 Kalyan). Phone examination showed a contact stored as R receiving calls after each property crime. The number 9821045451 is consistent with the network operative handling proceeds in FIRs 0178/2023 and 0234/2024. Arms were to be handed over for a planned jewelry job in Mumbai, corroborated by a call spike with 9890055667 one day prior.",
+    "entities": {
+      "persons": [
+        "Santosh Yadav",
+        "Ravi Patel",
+        "Mohammed Ali"
+      ],
+      "phones": [
+        "9821045451",
+        "9890055667"
+      ],
+      "accounts": [],
+      "places": [
+        "Nagothane",
+        "Mangaon"
+      ]
+    },
+    "evidence": {
+      "phones": [
+        "9821045451",
+        "9890055667",
+        "9021011223"
+      ],
+      "weapons": [
+        "2 country-made pistols"
+      ]
+    },
+    "related_firs": [
+      3,
+      4
+    ]
+  },
+  {
+    "idx": 9,
+    "fir_no": "0666/2025",
+    "year": 2025,
+    "police_station": "Chatushrungi PS",
+    "district": "Pune",
+    "state": "Maharashtra",
+    "incident_date": "2025-09-10",
+    "incident_time": "-",
+    "registered_date": "2025-09-12",
+    "title": "Kidnapping plot - burner CDR ties to known network (ACTIVE CASE)",
+    "category": "kidnapping",
+    "sections": [
+      "342 BNS",
+      "120B IPC"
+    ],
+    "complainant": {
+      "name": "Vishal Kulkarni (father)",
+      "phone": "9552077552",
+      "address": "Aundh, Pune",
+      "relation": "Father of victim"
+    },
+    "accused": [
+      {
+        "name": null,
+        "alias": "Caller (returned device)",
+        "description": "Demanded Rs 50 lakh; victim released after 63 hours",
+        "status": "unknown"
+      }
+    ],
+    "narrative": "On 10.09.2025 the complainant's son was abducted from Aundh Pune; a ransom call demanding Rs 50 lakh was received from a prepaid connection later found burnt. The victim was released unharmed after 63 hours. Tower data of the ransom device for 10-12.09.2025 shows the SIM was active only in the Pune Kothrud-Hadapsar belt. GPRS CDR of the device shows connectivity bursts at towers PUN-003 and PUN-008 co-locating with devices used by the network identified in prior Pune FIRs. The ransom number 9890919293 has no subscriber record - a burned device. This is the ACTIVE investigation against which all prior intelligence in this dataset is cross-referenced.",
+    "entities": {
+      "persons": [
+        "Unknown"
+      ],
+      "phones": [
+        "9890919293"
+      ],
+      "accounts": [],
+      "places": [
+        "Aundh, Pune",
+        "Kothrud",
+        "Hadapsar"
+      ]
+    },
+    "evidence": {
+      "phones": [
+        "9890919293"
+      ],
+      "towers": [
+        "PUN-003",
+        "PUN-008",
+        "PUN-004"
+      ]
+    },
+    "related_firs": [
+      6
+    ]
+  }
+]
