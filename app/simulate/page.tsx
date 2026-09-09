@@ -24,9 +24,10 @@ const NARRATION_SEGMENTS: { t: number; key: string }[] = [
   { t: 115, key: "n13" },
 ];
 
-const NARRATION_AUDIO: Record<string, string> = Object.fromEntries(
-  NARRATION_SEGMENTS.map((s) => [s.key, `/audio/narration/${s.key}.mp3`]),
-);
+const NARRATION_AUDIO: Record<string, Record<string, string>> = {
+  en: Object.fromEntries(NARRATION_SEGMENTS.map((s) => [s.key, `/audio/narration/en/${s.key}.mp3`])),
+  hi: Object.fromEntries(NARRATION_SEGMENTS.map((s) => [s.key, `/audio/narration/hi/${s.key}.mp3`])),
+};
 
 export default function SimulatePage() {
   const [data, setData] = useState<SimData | null>(null);
@@ -118,6 +119,7 @@ export default function SimulatePage() {
 
   // --- suspense narration (real voice via audio files, continuous)
   const [voiceOn, setVoiceOn] = useState(true);
+  const [lang, setLang] = useState<"en" | "hi">("en");
   const [narrationMissing, setNarrationMissing] = useState(false);
   const lastPlayedRef = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -125,9 +127,10 @@ export default function SimulatePage() {
     if (!voiceOn || !playing) return;
     let seg = NARRATION_SEGMENTS[0];
     for (const s of NARRATION_SEGMENTS) if (time >= s.t) seg = s;
-    if (lastPlayedRef.current === seg.key) return;
-    lastPlayedRef.current = seg.key;
-    const src = NARRATION_AUDIO[seg.key];
+    const playKey = `${lang}:${seg.key}`;
+    if (lastPlayedRef.current === playKey) return;
+    lastPlayedRef.current = playKey;
+    const src = NARRATION_AUDIO[lang][seg.key];
     if (!src) return;
     audioRef.current?.pause();
     const a = new Audio(src);
@@ -135,7 +138,7 @@ export default function SimulatePage() {
     a.onerror = () => setNarrationMissing(true);
     a.volume = 1;
     a.play().catch(() => {});
-  }, [time, voiceOn, playing]);
+  }, [time, voiceOn, playing, lang]);
 
   useEffect(() => {
     return () => {
@@ -319,6 +322,13 @@ export default function SimulatePage() {
               title="Toggle narration"
             >
               {voiceOn ? "Narration on" : "Narration off"}
+            </button>
+            <button
+              onClick={() => setLang((l) => (l === "en" ? "hi" : "en"))}
+              className="h-11 rounded-full border border-white/15 px-4 text-sm font-medium text-neutral-200 transition hover:border-white/40"
+              title="Narration language"
+            >
+              {lang === "en" ? "EN" : "हिंदी"}
             </button>
             <div className="ml-auto font-mono text-sm tabular-nums text-neutral-400">
               {time.toFixed(1)}s / {data?.duration ?? 0}s
