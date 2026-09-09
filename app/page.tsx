@@ -1,6 +1,51 @@
+"use client";
+
 import Link from "next/link";
 import Nav from "./nav";
 import Carousel from "./carousel";
+import { useEffect, useRef, type VideoHTMLAttributes, type ReactNode } from "react";
+
+function PlayOnView({
+  className,
+  children,
+  ...props
+}: VideoHTMLAttributes<HTMLVideoElement> & { children?: ReactNode }) {
+  const ref = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            el.play().catch(() => {});
+          } else {
+            el.pause();
+          }
+        });
+      },
+      { threshold: 0.25 }
+    );
+
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <video
+      ref={ref}
+      className={className}
+      autoPlay
+      playsInline
+      preload="metadata"
+      {...props}
+    >
+      {children}
+    </video>
+  );
+}
 
 export default function Home() {
   return (
@@ -72,14 +117,7 @@ export default function Home() {
 
         <div className="land-row" style={{ paddingTop: "clamp(3rem, 6vw, 5rem)" }}>
           <div className="land-row-media">
-            <video
-              src="/assets/homepage_-_Foundry.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-            />
+            <PlayOnView src="/assets/homepage_-_Foundry.mp4" />
           </div>
           <div className="land-row-copy">
             <h3 className="land-h3">Ingest &amp; reveal the complete record</h3>
@@ -117,14 +155,7 @@ export default function Home() {
 
         <div className="land-row land-row--flip">
           <div className="land-row-media">
-            <video
-              src="/assets/homepage_-_Gotham.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-            />
+            <PlayOnView src="/assets/homepage_-_Gotham.mp4" />
           </div>
           <div className="land-row-copy">
             <h3 className="land-h3">Follow the network, not the paper trail</h3>
@@ -145,14 +176,7 @@ export default function Home() {
 
         <div className="land-row">
           <div className="land-row-media">
-            <video
-              src="/assets/homepage_-_AIP.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-            />
+            <PlayOnView src="/assets/homepage_-_AIP.mp4" />
           </div>
           <div className="land-row-copy">
             <h3 className="land-h3">Ask in plain language. Get cited answers.</h3>
@@ -173,14 +197,7 @@ export default function Home() {
 
         <div className="land-row land-row--flip">
           <div className="land-row-media">
-            <video
-              src="/assets/homepage_-_Apollo.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-            />
+            <PlayOnView src="/assets/homepage_-_Apollo.mp4" />
           </div>
           <div className="land-row-copy">
             <h3 className="land-h3">Reports, evidence and audit, by design</h3>
@@ -243,8 +260,36 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ——— Video showcase ——— */}
+      <section className="land-section">
+        <div className="land-edge" style={{ maxWidth: "960px" }}>
+          <p className="land-eyebrow" style={{ textAlign: "center", margin: "0 0 1.25rem" }}>
+            See preksha in action
+          </p>
+          <h2 className="land-h1" style={{ textAlign: "center", marginBottom: "1.25rem" }}>
+            A first look at the platform
+          </h2>
+          <p
+            className="land-sub"
+            style={{ textAlign: "center", margin: "0 auto 2.25rem", maxWidth: "34rem" }}
+          >
+            From raw evidence to the analytical network, right on screen.
+          </p>
+          <div className="land-video-frame">
+            <PlayOnView
+              src="/assets/hero1.mp4"
+              playsInline
+              loop
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            >
+              Your browser does not support the video tag.
+            </PlayOnView>
+          </div>
+        </div>
+      </section>
+
       {/* ——— CTA ——— */}
-      <section className="land-section" id="contact">
+      <section className="land-section" style={{ paddingTop: 0 }} id="contact">
         <div className="land-edge" style={{ maxWidth: "720px" }}>
           <h2 className="land-h1" style={{ textAlign: "center", marginBottom: "1.25rem" }}>
             Ready to see the whole network?
@@ -308,7 +353,11 @@ export default function Home() {
 
         {/* Giant wordmark at the very bottom */}
         <div className="land-footer-giant" aria-hidden="true">
-          PREKSHA
+          {"PREKSHA".split("").map((ch, i) => (
+            <span key={i} className="land-giant-letter">
+              {ch}
+            </span>
+          ))}
         </div>
       </footer>
     </main>
