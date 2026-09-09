@@ -284,14 +284,8 @@ function makePerson(id: string, color: string, name: string): Figure {
   label.position.set(0, 2.25, 0);
   group.add(label);
 
-  // real GLB person body (replaces the procedural body once loaded)
+  // procedural animated body (no GLB swap — keeps walk/aim/gun animation)
   const glbRef: { current: THREE.Group | null } = { current: null };
-  loadModel("/models/basiccharacter.glb", 1.7, (m) => {
-    m.rotation.y = Math.PI;
-    glbRef.current = m;
-    group.add(m);
-    proceduralBody.visible = false;
-  });
 
   return {
     group,
@@ -734,16 +728,16 @@ export default function SimScene({
       interiorRobbers[id] = f;
     }
 
-    // escape motorcycles parked near the store (Suzuki GLB + numberplate)
+    // escape motorcycles — GLB Suzuki (black Pulsar) for the exterior, procedural second bike
     const bikeA = {
       group: new THREE.Group(),
       plate: makePlate("MH 01 AB 1234", "MH 01 AB 1234 · BLACK PULSAR · FIR 1201/2023"),
     };
     bikeA.group.position.set(data.scene.x - 2.6, 0, data.scene.z + 1.2);
     bikeA.group.rotation.y = 0.4;
-    bikeA.plate.group.position.set(0, 0.55, -0.72);
+    bikeA.plate.group.position.set(0, 0.42, -0.86);
     bikeA.group.add(bikeA.plate.group);
-    loadModel("/models/suzuki.glb", 1.05, (m) => bikeA.group.add(m));
+    loadModel("/models/suzuki.glb", 1.0, (m) => bikeA.group.add(m));
     const bikeB = makeBike("#1a1420", "MH 01 CD 5678", null);
     bikeB.group.position.set(data.scene.x + 2.4, 0, data.scene.z + 1.5);
     bikeB.group.rotation.y = -0.5;
@@ -751,11 +745,11 @@ export default function SimScene({
     scene.add(bikeA.group, bikeB.group);
 
     const riderA = makeRider("#c07f1d"); // Mohammed
-    riderA.position.set(0, 0.5, -0.1);
+    riderA.position.set(0, 0.42, 0.1);
     riderA.visible = false;
     bikeA.group.add(riderA);
     const pillion = makeRider("#16669e"); // Ravi
-    pillion.position.set(0, 0.55, -0.55);
+    pillion.position.set(0, 0.45, -0.3);
     pillion.visible = false;
     bikeA.group.add(pillion);
     const riderB = makeRider("#5c4fc4"); // Santosh
@@ -1007,7 +1001,7 @@ export default function SimScene({
 
     const onCall = new Set<string>();
 
-    // per-shot isolation — only render what belongs to the current camera shot
+    // per-shot isolation — interior is the only isolated shot; approach/escape/money share the full city
     function applyShot(t: number) {
       const interior = t >= 53.5 && t < 64;
       const escape = t >= 64 && t < 84;
@@ -1015,10 +1009,10 @@ export default function SimScene({
       const money = t >= 84 && t < 116;
       const wide = t < 53.5 || t >= 116;
 
-      cityGroup.visible = wide || money;
+      cityGroup.visible = !interior;
       financeGroup.visible = wide || money;
-      ground.visible = !interior && !plate;
-      store.visible = wide || (escape && t < 73);
+      ground.visible = !interior;
+      store.visible = wide || escape;
       room.visible = interior;
       bikeA.group.visible = wide || escape;
       bikeB.group.visible = wide || (escape && !plate);
