@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { WS_NAV } from "@/components/ws/ws-shell";
+import { usePathname } from "next/navigation";
 import {
   ArrowUp,
   ArrowUpRight,
@@ -252,6 +254,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 }
 
 export default function AskPage() {
+  const pathname = usePathname();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -410,6 +413,28 @@ export default function AskPage() {
             <X className="size-4" />
           </button>
         </div>
+
+        <nav className="space-y-0.5 px-4 pb-4">
+          {WS_NAV.map((item) => {
+            const active = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setSidebarOpen(false)}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-xl px-3 py-2 text-[12.5px] font-medium transition-colors",
+                  active
+                    ? "bg-neutral-100 text-neutral-950"
+                    : "text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900",
+                )}
+              >
+                <item.icon className={cn("size-4", active ? "text-neutral-950" : "text-neutral-400")} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
 
         <div className="flex-1 space-y-7 overflow-y-auto px-4 pb-6">
           <section>
