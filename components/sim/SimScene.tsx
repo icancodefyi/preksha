@@ -1001,7 +1001,7 @@ export default function SimScene({
 
     const onCall = new Set<string>();
 
-    // per-shot isolation — only render what belongs to the current camera shot
+    // per-shot isolation — interior is the only isolated shot; approach/escape/money share the full city
     function applyShot(t: number) {
       const interior = t >= 53.5 && t < 64;
       const escape = t >= 64 && t < 84;
@@ -1009,10 +1009,10 @@ export default function SimScene({
       const money = t >= 84 && t < 116;
       const wide = t < 53.5 || t >= 116;
 
-      cityGroup.visible = wide || money;
+      cityGroup.visible = !interior;
       financeGroup.visible = wide || money;
-      ground.visible = !interior && !plate;
-      store.visible = wide || (escape && t < 73);
+      ground.visible = !interior;
+      store.visible = wide || escape;
       room.visible = interior;
       bikeA.group.visible = wide || escape;
       bikeB.group.visible = wide || (escape && !plate);
