@@ -5,12 +5,15 @@ import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { SimData, SimEvent } from "@/lib/graph/simulation";
 
 export interface SimController {
   t: number;
   playing: boolean;
   speed: number;
+  autoCam: boolean;
 }
 
 const ease = (u: number) => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
@@ -179,6 +182,8 @@ interface Figure {
   label: THREE.Sprite;
   glow: THREE.Mesh;
   walkPhase: number;
+  proceduralBody: THREE.Group;
+  glbRef: { current: THREE.Group | null };
 }
 
 interface Persona {
@@ -201,6 +206,8 @@ const PERSONA: Record<string, Persona> = {
 function makePerson(id: string, color: string, name: string): Figure {
   const p = PERSONA[id] ?? { shirt: "#5a5f72", pants: "#23242e", skin: "#c9967a" };
   const group = new THREE.Group();
+  const proceduralBody = new THREE.Group();
+  group.add(proceduralBody);
 
   const skinMat = new THREE.MeshStandardMaterial({ color: p.skin, roughness: 0.7 });
   const shirtMat = new THREE.MeshStandardMaterial({ color: p.shirt, roughness: 0.8 });
@@ -220,7 +227,7 @@ function makePerson(id: string, color: string, name: string): Figure {
     crown.position.y = 1.82;
     torso.add(brim, crown);
   }
-  group.add(torso);
+  proceduralBody.add(torso);
 
   const mkLeg = (x: number) => {
     const g = new THREE.Group();
@@ -228,7 +235,7 @@ function makePerson(id: string, color: string, name: string): Figure {
     mesh.position.y = -0.31;
     g.add(mesh);
     g.position.set(x, 0.62, 0);
-    group.add(g);
+    proceduralBody.add(g);
     return mesh;
   };
   const leftLeg = mkLeg(-0.12);
@@ -240,7 +247,7 @@ function makePerson(id: string, color: string, name: string): Figure {
     mesh.position.y = -0.26;
     g.add(mesh);
     g.position.set(x, 1.26, 0);
-    group.add(g);
+    proceduralBody.add(g);
     return mesh;
   };
   const leftArm = mkArm(-0.32);
@@ -255,7 +262,7 @@ function makePerson(id: string, color: string, name: string): Figure {
   phone.visible = false;
 
   const gun = makeGun();
-  gun.position.set(0.32, 1.22, 0.12);
+  gun.position.set(0.34, 1.2, 0.2);
   gun.visible = false;
   group.add(gun);
 
@@ -277,7 +284,35 @@ function makePerson(id: string, color: string, name: string): Figure {
   label.position.set(0, 2.25, 0);
   group.add(label);
 
-  return { group, torso, leftLeg, rightLeg, leftArm, rightArm, phone, gun, label, glow, walkPhase: 0 };
+  // real GLB person body (replaces the procedural body once loaded)
+  const glbRef: { current: THREE.Group | null } = { current: null };
+  loadModel("/models/basiccharacter.glb", 1.7, (m) => {
+    m.rotation.y = Math.PI;
+    glbRef.current = m;
+    group.add(m);
+    proceduralBody.visible = false;
+  });
+
+  return {
+    group,
+    torso,
+    leftLeg,
+    rightLeg,
+    leftArm,
+    rightArm,
+    phone,
+    gun,
+    label,
+    glow,
+    walkPhase: 0,
+    proceduralBody,
+    glbRef,
+  };
+}
+
+function setBob(fig: Figure, y: number) {
+  fig.torso.position.y = y;
+  if (fig.glbRef.current) fig.glbRef.current.position.y = y;
 }
 
 function makePlate(text: string, caption: string | null): { group: THREE.Group; frame: THREE.Mesh; label: THREE.Sprite } {
@@ -336,6 +371,35 @@ function makeRider(shirtColor: string): THREE.Group {
   armR.rotation.x = 0.9;
   g.add(armL, armR);
   return g;
+}
+
+// load a GLB model, normalize to a target height and sit it on the ground
+function loadModel(url: string, height: number, onLoad: (g: THREE.Group) => void): void {
+  new GLTFLoader().load(
+    url,
+    (gltf) => {
+      const wrap = new THREE.Group();
+      wrap.add(gltf.scene);
+      wrap.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (m.isMesh) {
+          m.castShadow = true;
+          m.receiveShadow = true;
+        }
+      });
+      const box = new THREE.Box3().setFromObject(wrap);
+      const size = box.getSize(new THREE.Vector3());
+      const s = height / (size.y || 1);
+      wrap.scale.setScalar(s);
+      wrap.updateMatrixWorld(true);
+      const b2 = new THREE.Box3().setFromObject(wrap);
+      const c2 = b2.getCenter(new THREE.Vector3());
+      wrap.position.set(-c2.x, -b2.min.y, -c2.z);
+      onLoad(wrap);
+    },
+    undefined,
+    () => {},
+  );
 }
 
 function makeBike(
@@ -538,6 +602,17 @@ export default function SimScene({
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 240);
     camera.position.set(-6, 14, 30);
 
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(-1.5, 1.2, 0);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.minDistance = 6;
+    controls.maxDistance = 90;
+    controls.maxPolarAngle = Math.PI * 0.49;
+    controls.addEventListener("start", () => {
+      controller.current.autoCam = false;
+    });
+
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
     const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.85, 0.6, 0.55);
@@ -581,39 +656,35 @@ export default function SimScene({
     ground.receiveShadow = true;
     scene.add(ground);
 
-    // --- buildings for every cell tower
+    // --- buildings for every cell tower (GLB city + tower antenna markers)
+    const cityGroup = new THREE.Group();
+    scene.add(cityGroup);
     const buildingTip: Record<string, THREE.Mesh> = {};
+    const buildingModels = ["apartment", "house", "skyscraper", "smallbuilding"];
     let seedBase = 900;
-    for (const t of data.towers) {
+    data.towers.forEach((t, i) => {
       const isScene = t.scene;
-      const h = isScene ? 3.4 : 2.4 + mulberry32(seedBase)() * 3.0;
-      const f = facadeTextures(seedBase);
+      const h = isScene ? 3.4 : 2.6 + mulberry32(seedBase)() * 2.0;
       seedBase += 37;
-      const mat = new THREE.MeshStandardMaterial({
-        map: f.map,
-        emissive: 0xffc28a,
-        emissiveMap: f.emis,
-        emissiveIntensity: 0.85,
-        roughness: 0.8,
-      });
-      const b = new THREE.Mesh(new THREE.BoxGeometry(1.7, h, 1.7), mat);
-      b.position.set(t.x, h / 2, t.z);
-      b.castShadow = true;
-      b.receiveShadow = true;
-      scene.add(b);
+      const towerGrp = new THREE.Group();
+      towerGrp.position.set(t.x, 0, t.z);
+      cityGroup.add(towerGrp);
 
       const tip = new THREE.Mesh(
         new THREE.SphereGeometry(0.12, 12, 12),
         new THREE.MeshBasicMaterial({ color: isScene ? 0xffb020 : 0xff3b5c }),
       );
-      tip.position.set(t.x, h + 0.35, t.z);
-      scene.add(tip);
+      tip.position.set(0, h + 0.35, 0);
+      towerGrp.add(tip);
       buildingTip[t.id] = tip;
 
       const lbl = makeLabel(t.id, "#9aa4c0", { size: 26, dim: true });
-      lbl.position.set(t.x, h + 1.1, t.z);
-      scene.add(lbl);
-    }
+      lbl.position.set(0, h + 1.1, 0);
+      towerGrp.add(lbl);
+
+      const url = `/models/${buildingModels[i % buildingModels.length]}.glb`;
+      loadModel(url, h, (model) => towerGrp.add(model));
+    });
 
     // --- the store (exterior shell, hidden during the interior cut)
     const store = (() => {
@@ -663,11 +734,16 @@ export default function SimScene({
       interiorRobbers[id] = f;
     }
 
-    // escape motorcycles parked near the store
-    const bikeA = makeBike("#14141c", "MH 01 AB 1234", "MH 01 AB 1234 · BLACK PULSAR · FIR 1201/2023");
+    // escape motorcycles parked near the store (Suzuki GLB + numberplate)
+    const bikeA = {
+      group: new THREE.Group(),
+      plate: makePlate("MH 01 AB 1234", "MH 01 AB 1234 · BLACK PULSAR · FIR 1201/2023"),
+    };
     bikeA.group.position.set(data.scene.x - 2.6, 0, data.scene.z + 1.2);
     bikeA.group.rotation.y = 0.4;
-    bikeA.group.scale.setScalar(0.9);
+    bikeA.plate.group.position.set(0, 0.55, -0.72);
+    bikeA.group.add(bikeA.plate.group);
+    loadModel("/models/suzuki.glb", 1.05, (m) => bikeA.group.add(m));
     const bikeB = makeBike("#1a1420", "MH 01 CD 5678", null);
     bikeB.group.position.set(data.scene.x + 2.4, 0, data.scene.z + 1.5);
     bikeB.group.rotation.y = -0.5;
@@ -675,11 +751,11 @@ export default function SimScene({
     scene.add(bikeA.group, bikeB.group);
 
     const riderA = makeRider("#c07f1d"); // Mohammed
-    riderA.position.set(0, 0.55, -0.05);
+    riderA.position.set(0, 0.5, -0.1);
     riderA.visible = false;
     bikeA.group.add(riderA);
     const pillion = makeRider("#16669e"); // Ravi
-    pillion.position.set(0, 0.6, -0.42);
+    pillion.position.set(0, 0.55, -0.55);
     pillion.visible = false;
     bikeA.group.add(pillion);
     const riderB = makeRider("#5c4fc4"); // Santosh
@@ -699,6 +775,8 @@ export default function SimScene({
     }
 
     // --- shell / financier plaques + kingpin HQ
+    const financeGroup = new THREE.Group();
+    scene.add(financeGroup);
     for (const a of data.actors) {
       if (a.kind === "remote") {
         const f = facadeTextures(505, 3, 3);
@@ -713,10 +791,10 @@ export default function SimScene({
         b.position.set(a.pos!.x, 1.3, a.pos!.z);
         b.castShadow = true;
         b.receiveShadow = true;
-        scene.add(b);
+        financeGroup.add(b);
         const lbl = makeLabel("RAJESH KUMAR · PUNE HQ", "#ff7a8a", { pill: true, size: 30 });
         lbl.position.set(a.pos!.x, 3.1, a.pos!.z);
-        scene.add(lbl);
+        financeGroup.add(lbl);
       } else if (a.kind === "entity") {
         const b = new THREE.Mesh(
           new THREE.BoxGeometry(2.0, 1.4, 1.2),
@@ -730,10 +808,10 @@ export default function SimScene({
         b.position.set(a.pos!.x, 0.7, a.pos!.z);
         b.castShadow = true;
         b.receiveShadow = true;
-        scene.add(b);
+        financeGroup.add(b);
         const lbl = makeLabel(a.name, "#5fe0b0", { pill: true, size: 28 });
         lbl.position.set(a.pos!.x, 1.9, a.pos!.z);
-        scene.add(lbl);
+        financeGroup.add(lbl);
       }
     }
 
@@ -929,13 +1007,27 @@ export default function SimScene({
 
     const onCall = new Set<string>();
 
+    // per-shot isolation — only render what belongs to the current camera shot
+    function applyShot(t: number) {
+      const interior = t >= 53.5 && t < 64;
+      const escape = t >= 64 && t < 84;
+      const plate = t >= 80 && t < 84;
+      const money = t >= 84 && t < 116;
+      const wide = t < 53.5 || t >= 116;
+
+      cityGroup.visible = wide || money;
+      financeGroup.visible = wide || money;
+      ground.visible = !interior && !plate;
+      store.visible = wide || (escape && t < 73);
+      room.visible = interior;
+      bikeA.group.visible = wide || escape;
+      bikeB.group.visible = wide || (escape && !plate);
+    }
+
     function update(t: number) {
       const interior = isInterior(t);
       const escaping = t >= 64 && t < 84;
-      store.visible = !interior;
-      bikeA.group.visible = !interior && !escaping;
-      bikeB.group.visible = !interior && !escaping;
-      room.visible = interior;
+      applyShot(t);
 
       onCall.clear();
       for (const e of data.events) {
@@ -965,7 +1057,7 @@ export default function SimScene({
         if (moving) fig.group.rotation.y = Math.atan2(dx, dz);
 
         const bob = moving ? Math.sin(fig.walkPhase * 2) * 0.05 : 0;
-        fig.torso.position.y = bob;
+        setBob(fig, bob);
         const swing = moving ? Math.sin(fig.walkPhase) * 0.55 : 0;
         fig.leftLeg.rotation.x = swing;
         fig.rightLeg.rotation.x = -swing;
@@ -990,8 +1082,8 @@ export default function SimScene({
         worker1.group.rotation.y = 0;
         worker2.group.rotation.y = 0;
         const crouch = threat ? -0.25 : 0;
-        worker1.torso.position.y = crouch;
-        worker2.torso.position.y = crouch;
+        setBob(worker1, crouch);
+        setBob(worker2, crouch);
         if (threat) {
           worker1.leftArm.rotation.x = -1.7;
           worker1.rightArm.rotation.x = -1.7;
@@ -1013,7 +1105,7 @@ export default function SimScene({
           f.group.rotation.y = p.rotY;
           const moving = t < 56 || t >= 60;
           if (moving) f.walkPhase += 0.2;
-          f.torso.position.y = moving ? Math.sin(f.walkPhase * 2) * 0.05 : Math.sin(t * 6) * 0.02;
+          setBob(f, moving ? Math.sin(f.walkPhase * 2) * 0.05 : Math.sin(t * 6) * 0.02);
           const swing = moving ? Math.sin(f.walkPhase) * 0.6 : 0;
           f.leftLeg.rotation.x = swing;
           f.rightLeg.rotation.x = -swing;
@@ -1050,7 +1142,7 @@ export default function SimScene({
             fig.group.rotation.y = Math.atan2(tx - sx, tz - (sz + 1.4));
             fig.walkPhase += 0.22;
             const sw = Math.sin(fig.walkPhase) * 0.6;
-            fig.torso.position.y = Math.sin(fig.walkPhase * 2) * 0.05;
+            setBob(fig, Math.sin(fig.walkPhase * 2) * 0.05);
             fig.leftLeg.rotation.x = sw;
             fig.rightLeg.rotation.x = -sw;
             fig.leftArm.rotation.x = sw * 0.7;
@@ -1210,14 +1302,18 @@ export default function SimScene({
         }
       }
 
-      // cinematic camera
-      const rig = rigFor(c.t);
-      const k = 1 - Math.exp(-dt * 3.4);
-      camera.position.lerp(rig.pos, k);
-      camTgt.lerp(rig.tgt, k);
-      const sway = 0.08 * Math.sin(now * 0.0005) + 0.04 * Math.sin(now * 0.0017);
-      camera.position.x += sway;
-      camera.lookAt(camTgt);
+      // cinematic camera (auto) vs manual orbit
+      if (c.autoCam) {
+        const rig = rigFor(c.t);
+        const k = 1 - Math.exp(-dt * 3.4);
+        camera.position.lerp(rig.pos, k);
+        camTgt.lerp(rig.tgt, k);
+        controls.target.copy(camTgt);
+        const sway = 0.08 * Math.sin(now * 0.0005) + 0.04 * Math.sin(now * 0.0017);
+        camera.position.x += sway;
+        camera.lookAt(camTgt);
+      }
+      controls.update();
 
       resetTransients();
       update(c.t);
@@ -1231,6 +1327,7 @@ export default function SimScene({
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
+      controls.dispose();
       scene.traverse((o) => {
         const m = o as THREE.Mesh;
         if (m.geometry) m.geometry.dispose();
