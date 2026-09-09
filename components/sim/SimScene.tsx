@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
@@ -15,6 +14,7 @@ export interface SimController {
 }
 
 const ease = (u: number) => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
+const lerp = (a: number, b: number, u: number) => a + (b - a) * u;
 
 function mulberry32(seed: number) {
   let a = seed >>> 0;
@@ -66,7 +66,6 @@ function makeLabel(
   return sprite;
 }
 
-// building facade + emissive "lit windows" mask
 function facadeTextures(seed: number, wCells = 5, hCells = 6): { map: THREE.CanvasTexture; emis: THREE.CanvasTexture } {
   const rnd = mulberry32(seed);
   const W = 256;
@@ -80,19 +79,14 @@ function facadeTextures(seed: number, wCells = 5, hCells = 6): { map: THREE.Canv
   const wc = wall.getContext("2d")!;
   wc.fillStyle = "#0e1424";
   wc.fillRect(0, 0, W, H);
-  // facade panels
   wc.fillStyle = "#1a2438";
   wc.fillRect(6, 6, W - 12, H - 12);
-  // windows
   for (let i = 0; i < wCells; i++) {
     for (let j = 0; j < hCells; j++) {
-      const x = 14 + i * cw;
-      const y = 16 + j * ch;
       wc.fillStyle = "#0a101f";
-      wc.fillRect(x, y, cw - 18, ch - 22);
+      wc.fillRect(14 + i * cw, 16 + j * ch, cw - 18, ch - 22);
     }
   }
-  // door
   wc.fillStyle = "#05080f";
   wc.fillRect(W / 2 - 12, H - 40, 24, 34);
 
@@ -105,11 +99,9 @@ function facadeTextures(seed: number, wCells = 5, hCells = 6): { map: THREE.Canv
   for (let i = 0; i < wCells; i++) {
     for (let j = 0; j < hCells; j++) {
       if (rnd() < 0.42) {
-        const x = 14 + i * cw;
-        const y = 16 + j * ch;
         const warm = rnd() < 0.5 ? "255,190,120" : "170,205,255";
         ec.fillStyle = `rgba(${warm},0.9)`;
-        ec.fillRect(x + 2, y + 2, cw - 22, ch - 26);
+        ec.fillRect(16 + i * cw, 18 + j * ch, cw - 22, ch - 26);
       }
     }
   }
@@ -128,19 +120,13 @@ function storeTextures(): { map: THREE.CanvasTexture; emis: THREE.CanvasTexture 
   wall.width = W;
   wall.height = H;
   const wc = wall.getContext("2d")!;
-  wc.fillStyle = "#101624";
-  wc.fillRect(0, 0, W, H);
-  // storefront band
   wc.fillStyle = "#182136";
   wc.fillRect(0, 0, W, H);
-  // big glass windows
   wc.fillStyle = "#0c1a24";
   wc.fillRect(30, 150, 200, 190);
   wc.fillRect(282, 150, 200, 190);
-  // door
   wc.fillStyle = "#05080f";
   wc.fillRect(230, 150, 52, 190);
-  // awning
   wc.fillStyle = "#7a1626";
   wc.fillRect(10, 120, W - 20, 46);
 
@@ -150,11 +136,9 @@ function storeTextures(): { map: THREE.CanvasTexture; emis: THREE.CanvasTexture 
   const ec = emis.getContext("2d")!;
   ec.fillStyle = "#000000";
   ec.fillRect(0, 0, W, H);
-  // warm glass glow
   ec.fillStyle = "rgba(255,196,120,0.95)";
   ec.fillRect(34, 154, 192, 182);
   ec.fillRect(286, 154, 192, 182);
-  // sign
   ec.fillStyle = "rgba(255,214,140,1)";
   ec.fillRect(120, 40, 272, 60);
   ec.fillStyle = "#000000";
@@ -174,14 +158,12 @@ function groundTexture(): THREE.CanvasTexture {
   const g = c.getContext("2d")!;
   g.fillStyle = "#080b12";
   g.fillRect(0, 0, 1024, 1024);
-  // subtle asphalt noise
   const rnd = mulberry32(7);
   for (let i = 0; i < 6000; i++) {
     const v = 12 + rnd() * 14;
     g.fillStyle = `rgba(${v},${v + 6},${v + 16},0.35)`;
     g.fillRect(rnd() * 1024, rnd() * 1024, 2, 2);
   }
-  // city blocks (slightly raised footprints)
   const N = 8;
   const cell = 1024 / N;
   for (let i = 0; i < N; i++) {
@@ -193,13 +175,11 @@ function groundTexture(): THREE.CanvasTexture {
       g.strokeRect(i * cell + 18, j * cell + 18, cell - 36, cell - 36);
     }
   }
-  // roads
   g.fillStyle = "#0c0f18";
   g.fillRect(0, 0, 1024, 40);
   g.fillRect(0, 984, 1024, 40);
   g.fillRect(0, 0, 40, 1024);
   g.fillRect(984, 0, 40, 1024);
-  // center lane dashes
   g.fillStyle = "rgba(200,180,120,0.35)";
   for (let k = 0; k < 16; k++) {
     g.fillRect(20, 60 + k * 60, 18, 30);
@@ -209,7 +189,6 @@ function groundTexture(): THREE.CanvasTexture {
   }
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(1, 1);
   tex.anisotropy = 8;
   return tex;
 }
@@ -240,6 +219,8 @@ const PERSONA: Record<string, Persona> = {
   mohammed: { shirt: "#c07f1d", pants: "#23242e", skin: "#a9744c" },
   ravi: { shirt: "#16669e", pants: "#23242e", skin: "#c99a6c" },
   santosh: { shirt: "#5c4fc4", pants: "#23242e", skin: "#c9967a" },
+  worker: { shirt: "#3a4a68", pants: "#2a3040", skin: "#d0a272" },
+  worker2: { shirt: "#4a3a5c", pants: "#2a3040", skin: "#c9967a" },
 };
 
 function makePerson(id: string, color: string, name: string): Figure {
@@ -254,7 +235,6 @@ function makePerson(id: string, color: string, name: string): Figure {
   const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.62, 12), shirtMat);
   body.position.y = 1.0;
   torso.add(body);
-
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 20), skinMat);
   head.position.y = 1.62;
   torso.add(head);
@@ -291,7 +271,6 @@ function makePerson(id: string, color: string, name: string): Figure {
   const leftArm = mkArm(-0.32);
   const rightArm = mkArm(0.32);
 
-  // glowing phone (held in right hand)
   const phone = new THREE.Mesh(
     new THREE.SphereGeometry(0.06, 12, 12),
     new THREE.MeshBasicMaterial({ color: 0x9fd0ff }),
@@ -300,7 +279,6 @@ function makePerson(id: string, color: string, name: string): Figure {
   rightArm.add(phone);
   phone.visible = false;
 
-  // presence glow on the ground
   const glow = new THREE.Mesh(
     new THREE.CircleGeometry(0.5, 24),
     new THREE.MeshBasicMaterial({
@@ -343,6 +321,124 @@ function makeBike(color: string): THREE.Group {
   g.add(w1, w2, body, seat, tank, handle);
   return g;
 }
+
+// ---------------------------------------------------------------------------
+// interior store set
+// ---------------------------------------------------------------------------
+interface Room {
+  group: THREE.Group;
+}
+
+function makeRoom(sx: number, sz: number): Room {
+  const g = new THREE.Group();
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x1c2438, roughness: 0.85 });
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x141a28, roughness: 0.7 });
+  const ceilMat = new THREE.MeshStandardMaterial({ color: 0x0e1320, roughness: 0.9 });
+
+  const hw = 5.6;
+  const hd = 4.6;
+  const H = 5.4;
+
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(hw * 2, 0.2, hd * 2), floorMat);
+  floor.position.y = 0;
+  floor.receiveShadow = true;
+  g.add(floor);
+
+  const back = new THREE.Mesh(new THREE.BoxGeometry(hw * 2, H, 0.3), wallMat);
+  back.position.set(0, H / 2, -hd);
+  back.receiveShadow = true;
+  g.add(back);
+
+  const left = new THREE.Mesh(new THREE.BoxGeometry(0.3, H, hd * 2), wallMat);
+  left.position.set(-hw, H / 2, 0);
+  left.receiveShadow = true;
+  g.add(left);
+
+  const right = new THREE.Mesh(new THREE.BoxGeometry(0.3, H, hd * 2), wallMat);
+  right.position.set(hw, H / 2, 0);
+  right.receiveShadow = true;
+  g.add(right);
+
+  const ceil = new THREE.Mesh(new THREE.BoxGeometry(hw * 2, 0.2, hd * 2), ceilMat);
+  ceil.position.y = H;
+  g.add(ceil);
+
+  // ceiling lights
+  const lightMat = new THREE.MeshBasicMaterial({ color: 0xfff2d0 });
+  for (let i = 0; i < 3; i++) {
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.1, 0.5), lightMat);
+    panel.position.set(-2.4 + i * 2.4, H - 0.12, -1);
+    g.add(panel);
+  }
+
+  // back-wall sign
+  const sign = new THREE.Mesh(
+    new THREE.BoxGeometry(4.4, 0.7, 0.15),
+    new THREE.MeshStandardMaterial({ color: 0xffd68c, emissive: 0xffd68c, emissiveIntensity: 1.2 }),
+  );
+  sign.position.set(0, 3.6, -hd + 0.18);
+  g.add(sign);
+  const signLabel = makeLabel("MANEKCHAND", "#1a0d00", { size: 44 });
+  signLabel.position.set(0, 3.6, -hd + 0.3);
+  g.add(signLabel);
+
+  // display counters with jewellery
+  const counterMat = new THREE.MeshStandardMaterial({ color: 0x0c1420, roughness: 0.5, metalness: 0.2 });
+  const glassMat = new THREE.MeshStandardMaterial({
+    color: 0x9fc6ff,
+    roughness: 0.1,
+    metalness: 0.1,
+    transparent: true,
+    opacity: 0.35,
+  });
+  const gemColors = [0xffd54a, 0x7fd0ff, 0xff8aa0, 0x8affd0];
+  const gems: THREE.Mesh[] = [];
+  for (const cx of [-1.9, 1.9]) {
+    const counter = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.95, 1.0), counterMat);
+    counter.position.set(cx, 0.5, -1.5);
+    counter.castShadow = true;
+    counter.receiveShadow = true;
+    g.add(counter);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(2.65, 0.14, 1.05), glassMat);
+    top.position.set(cx, 1.05, -1.5);
+    g.add(top);
+    for (let k = 0; k < 4; k++) {
+      const gem = new THREE.Mesh(
+        new THREE.SphereGeometry(0.09, 12, 12),
+        new THREE.MeshStandardMaterial({
+          color: gemColors[k],
+          emissive: gemColors[k],
+          emissiveIntensity: 1.6,
+          roughness: 0.2,
+        }),
+      );
+      gem.position.set(cx - 0.9 + k * 0.6, 1.14, -1.5);
+      g.add(gem);
+      gems.push(gem);
+    }
+  }
+
+  // wall safe
+  const safe = new THREE.Mesh(
+    new THREE.BoxGeometry(1.0, 1.1, 0.5),
+    new THREE.MeshStandardMaterial({ color: 0x2a3040, roughness: 0.5, metalness: 0.6 }),
+  );
+  safe.position.set(0, 0.55, -hd + 0.3);
+  safe.castShadow = true;
+  g.add(safe);
+  const dial = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.12, 0.12, 0.06, 16),
+    new THREE.MeshStandardMaterial({ color: 0xd8c28a, metalness: 0.8, roughness: 0.3 }),
+  );
+  dial.rotation.x = Math.PI / 2;
+  dial.position.set(0, 0.7, -hd + 0.56);
+  g.add(dial);
+
+  g.position.set(sx, 0, sz);
+  return { group: g };
+}
+
+// ---------------------------------------------------------------------------
 
 export default function SimScene({
   data,
@@ -387,16 +483,6 @@ export default function SimScene({
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 240);
     camera.position.set(-6, 14, 30);
 
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(-1.5, 1.2, 0);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.06;
-    controls.minDistance = 9;
-    controls.maxDistance = 64;
-    controls.maxPolarAngle = Math.PI * 0.48;
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.3;
-
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
     const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.85, 0.6, 0.55);
@@ -419,6 +505,10 @@ export default function SimScene({
     const rim = new THREE.DirectionalLight(0x4a6cff, 0.6);
     rim.position.set(-12, 8, -14);
     scene.add(rim);
+    // interior warm light
+    const roomLight = new THREE.PointLight(0xffd9a0, 40, 40, 2);
+    roomLight.position.set(data.scene.x, 4.2, data.scene.z);
+    scene.add(roomLight);
 
     const towerById = new Map(data.towers.map((t) => [t.id, t]));
     const actorById = new Map(data.actors.map((a) => [a.id, a]));
@@ -455,7 +545,6 @@ export default function SimScene({
       b.receiveShadow = true;
       scene.add(b);
 
-      // antenna light on top
       const tip = new THREE.Mesh(
         new THREE.SphereGeometry(0.12, 12, 12),
         new THREE.MeshBasicMaterial({ color: isScene ? 0xffb020 : 0xff3b5c }),
@@ -469,7 +558,7 @@ export default function SimScene({
       scene.add(lbl);
     }
 
-    // --- the store (crime scene)
+    // --- the store (exterior shell)
     const store = (() => {
       const g = new THREE.Group();
       const f = storeTextures();
@@ -485,7 +574,6 @@ export default function SimScene({
       body.castShadow = true;
       body.receiveShadow = true;
       g.add(body);
-      // sign
       const sign = new THREE.Mesh(
         new THREE.BoxGeometry(2.6, 0.5, 0.2),
         new THREE.MeshStandardMaterial({
@@ -497,10 +585,6 @@ export default function SimScene({
       );
       sign.position.set(0, 3.35, 1.25);
       g.add(sign);
-      const signLabel = makeLabel("MANEKCHAND JEWELLERS", "#1a0d00", { size: 40 });
-      signLabel.position.set(0, 3.35, 1.4);
-      g.add(signLabel);
-      // canopy
       const canopy = new THREE.Mesh(
         new THREE.BoxGeometry(3.5, 0.18, 0.6),
         new THREE.MeshStandardMaterial({ color: 0x7a1626, roughness: 0.9 }),
@@ -513,6 +597,28 @@ export default function SimScene({
     })();
     scene.add(store);
 
+    // --- interior set (hidden until the robbery)
+    const room = makeRoom(data.scene.x, data.scene.z);
+    room.group.visible = false;
+    scene.add(room.group);
+
+    // interior staff + robbers
+    const worker1 = makePerson("worker", "#8fb0d8", "Store clerk");
+    worker1.group.visible = false;
+    room.group.add(worker1.group);
+    const worker2 = makePerson("worker2", "#8fb0d8", "Cashier");
+    worker2.group.visible = false;
+    room.group.add(worker2.group);
+
+    const interiorRobbers: Record<string, Figure> = {};
+    for (const id of ["mohammed", "ravi", "santosh"]) {
+      const a = actorById.get(id)!;
+      const f = makePerson(id, a.color, a.name);
+      f.group.visible = false;
+      room.group.add(f.group);
+      interiorRobbers[id] = f;
+    }
+
     // escape motorcycles parked near the store
     const bike1 = makeBike("#14141c");
     bike1.position.set(data.scene.x - 2.6, 0, data.scene.z + 1.2);
@@ -524,7 +630,7 @@ export default function SimScene({
     bike2.scale.setScalar(0.9);
     scene.add(bike1, bike2);
 
-    // --- people (members + remote kingpin)
+    // --- exterior people (members + remote kingpin)
     const figures: Record<string, Figure> = {};
     const prevPos: Record<string, { x: number; z: number }> = {};
     for (const a of data.actors) {
@@ -585,7 +691,7 @@ export default function SimScene({
       depthWrite: false,
     });
     const rings: THREE.Mesh[] = [];
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 12; i++) {
       const r = new THREE.Mesh(ringGeo, ringMat.clone());
       r.rotation.x = -Math.PI / 2;
       r.visible = false;
@@ -698,6 +804,53 @@ export default function SimScene({
     const tmpC = new THREE.Vector3();
     const tmpP = new THREE.Vector3();
 
+    // --- camera rigs
+    const sx = data.scene.x;
+    const sz = data.scene.z;
+    const RIGS = {
+      exterior: { pos: new THREE.Vector3(-6, 14, 30), tgt: new THREE.Vector3(-1.5, 1.2, 0) },
+      interior: { pos: new THREE.Vector3(sx, 3.0, sz + 7.2), tgt: new THREE.Vector3(sx, 1.5, sz - 1.2) },
+      escape: { pos: new THREE.Vector3(sx - 4, 8, sz + 16), tgt: new THREE.Vector3(sx, 1.2, sz + 1) },
+      money: { pos: new THREE.Vector3(-9, 17, 26), tgt: new THREE.Vector3(-2, 1.5, 0) },
+    };
+    const camTgt = RIGS.exterior.tgt.clone();
+
+    function rigFor(t: number) {
+      if (t < 53.5) return RIGS.exterior;
+      if (t < 64) return RIGS.interior;
+      if (t < 84) return RIGS.escape;
+      if (t < 116) return RIGS.money;
+      return RIGS.exterior;
+    }
+
+    function isInterior(t: number) {
+      return t >= 53.5 && t < 64;
+    }
+
+    // interior robber choreography (local coords relative to room center)
+    const lanes: Record<string, number> = { mohammed: -2.1, ravi: 0, santosh: 2.1 };
+
+    function robberInteriorPos(id: string, t: number): { x: number; z: number; rotY: number; vis: boolean } {
+      const lx = lanes[id];
+      if (t < 54) return { x: lx, z: 4.6, rotY: Math.PI, vis: false };
+      if (t < 56) {
+        const u = (t - 54) / 2;
+        return { x: lx, z: lerp(4.6, 0.3, u), rotY: Math.PI, vis: true };
+      }
+      if (t < 58) {
+        return { x: lx, z: 0.3, rotY: Math.PI, vis: true };
+      }
+      if (t < 60) {
+        const u = (t - 58) / 2;
+        return { x: lx, z: lerp(0.3, -0.4, u), rotY: Math.PI, vis: true };
+      }
+      if (t < 64) {
+        const u = (t - 60) / 4;
+        return { x: lx + (lx === 0 ? 0 : Math.sign(lx)) * u * 0.9, z: lerp(-0.4, 4.6, u), rotY: 0, vis: true };
+      }
+      return { x: lx, z: 4.6, rotY: 0, vis: false };
+    }
+
     function resize() {
       const w = el.clientWidth;
       const h = el.clientHeight;
@@ -712,6 +865,12 @@ export default function SimScene({
     const onCall = new Set<string>();
 
     function update(t: number) {
+      const interior = isInterior(t);
+      store.visible = !interior;
+      bike1.visible = !interior;
+      bike2.visible = !interior;
+      room.group.visible = interior;
+
       onCall.clear();
       for (const e of data.events) {
         if (e.kind === "call" && t >= e.t && t <= e.t + e.dur) {
@@ -720,13 +879,14 @@ export default function SimScene({
         }
       }
 
-      // people
+      // --- exterior people
       for (const a of data.actors) {
         if (a.kind === "entity") continue;
         const fig = figures[a.id];
         const p = actorPos(a.id, t);
-        fig.group.visible = p.visible;
-        if (!p.visible) continue;
+        const hiddenByInterior = interior && (a.id === "mohammed" || a.id === "ravi" || a.id === "santosh" || a.id === "rajesh2");
+        fig.group.visible = p.visible && !hiddenByInterior;
+        if (!fig.group.visible) continue;
         const prev = prevPos[a.id] ?? { x: p.x, z: p.z };
         const dx = p.x - prev.x;
         const dz = p.z - prev.z;
@@ -741,7 +901,6 @@ export default function SimScene({
         const swing = moving ? Math.sin(fig.walkPhase) * 0.55 : 0;
         fig.leftLeg.rotation.x = swing;
         fig.rightLeg.rotation.x = -swing;
-
         const calling = onCall.has(a.id);
         fig.phone.visible = calling;
         if (calling) {
@@ -753,7 +912,44 @@ export default function SimScene({
         }
       }
 
-      // events
+      // --- interior staff + robbers
+      if (interior) {
+        worker1.group.visible = true;
+        worker2.group.visible = true;
+        worker1.group.position.set(-2.6, 0, -2.4);
+        worker2.group.position.set(2.6, 0, -2.4);
+        worker1.group.rotation.y = Math.PI;
+        worker2.group.rotation.y = Math.PI;
+        // workers crouch during the attack
+        const crouch = t >= 56 ? -0.25 : 0;
+        worker1.torso.position.y = crouch;
+        worker2.torso.position.y = crouch;
+
+        for (const id of ["mohammed", "ravi", "santosh"]) {
+          const f = interiorRobbers[id];
+          const p = robberInteriorPos(id, t);
+          f.group.visible = p.vis;
+          if (!p.vis) continue;
+          f.group.position.set(p.x, 0, p.z);
+          f.group.rotation.y = p.rotY;
+          const moving = t < 56 || t >= 60;
+          if (moving) f.walkPhase += 0.2;
+          f.torso.position.y = moving ? Math.sin(f.walkPhase * 2) * 0.05 : Math.sin(t * 6) * 0.02;
+          const swing = moving ? Math.sin(f.walkPhase) * 0.6 : 0;
+          f.leftLeg.rotation.x = swing;
+          f.rightLeg.rotation.x = -swing;
+          f.rightArm.rotation.x = t >= 54 && t < 60 ? -0.9 : -swing * 0.7;
+          f.leftArm.rotation.x = swing * 0.7;
+          // pinging phones inside
+          f.phone.visible = t >= 54 && t < 60;
+        }
+      } else {
+        worker1.group.visible = false;
+        worker2.group.visible = false;
+        for (const id of ["mohammed", "ravi", "santosh"]) interiorRobbers[id].group.visible = false;
+      }
+
+      // --- events
       for (let i = 0; i < data.events.length; i++) {
         const e = data.events[i];
         if (t < e.t || t > e.t + e.dur) continue;
@@ -764,7 +960,7 @@ export default function SimScene({
           if (!arc) continue;
           const A = actorPos(e.a!, t);
           const B = actorPos(e.b!, t);
-          if (!A.visible || !B.visible) {
+          if (!A.visible || !B.visible || interior) {
             arc.line.visible = false;
             arc.pulse.visible = false;
             continue;
@@ -786,6 +982,7 @@ export default function SimScene({
           (arc.pulse.material as THREE.MeshBasicMaterial).opacity = fade;
           arc.pulse.visible = true;
         } else if (e.kind === "ping") {
+          if (interior) continue;
           if (!e.ambient) {
             const ring = rings[ringIdx % rings.length];
             ringIdx++;
@@ -796,11 +993,13 @@ export default function SimScene({
             (ring.material as THREE.MeshBasicMaterial).opacity = (1 - u) * 0.85;
           }
           const tip = buildingTip[e.towerId!];
-          if (tip) {
-            tip.scale.setScalar(1 + Math.sin(u * Math.PI) * (e.ambient ? 0.6 : 1.6));
-          }
+          if (tip) tip.scale.setScalar(1 + Math.sin(u * Math.PI) * (e.ambient ? 0.6 : 1.6));
         } else if (e.kind === "offense") {
-          offenseRing.position.set(data.scene.x, 0.08, data.scene.z);
+          if (interior) {
+            offenseRing.position.set(sx, 0.08, sz);
+          } else {
+            offenseRing.position.set(data.scene.x, 0.08, data.scene.z);
+          }
           offenseRing.visible = true;
           offenseRing.scale.setScalar(0.3 + u * 16);
           (offenseRing.material as THREE.MeshBasicMaterial).opacity = (1 - u) * 0.95;
@@ -816,6 +1015,21 @@ export default function SimScene({
           pkt.position.copy(tmpP);
           (pkt.material as THREE.MeshBasicMaterial).opacity = Math.sin(u * Math.PI);
           pkt.visible = true;
+        }
+      }
+
+      // pinging rings over the robbers inside the store
+      if (interior) {
+        for (const id of ["mohammed", "ravi", "santosh"]) {
+          const p = robberInteriorPos(id, t);
+          if (!p.vis) continue;
+          const ring = rings[ringIdx % rings.length];
+          ringIdx++;
+          ring.position.set(sx + p.x, 0.06, sz + p.z);
+          ring.visible = true;
+          const pulse = 0.3 + ((t * 2) % 1) * 3.5;
+          ring.scale.setScalar(pulse);
+          (ring.material as THREE.MeshBasicMaterial).opacity = 0.7;
         }
       }
     }
@@ -848,11 +1062,19 @@ export default function SimScene({
         }
       }
 
+      // cinematic camera
+      const rig = rigFor(c.t);
+      const k = 1 - Math.exp(-dt * 2.4);
+      camera.position.lerp(rig.pos, k);
+      camTgt.lerp(rig.tgt, k);
+      const sway = 0.12 * Math.sin(now * 0.0004) + 0.05 * Math.sin(now * 0.0013);
+      camera.position.x += sway;
+      camera.lookAt(camTgt);
+
       resetTransients();
       update(c.t);
       onTimeRef.current(c.t);
 
-      controls.update();
       composer.render();
     }
 
@@ -861,7 +1083,6 @@ export default function SimScene({
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
-      controls.dispose();
       scene.traverse((o) => {
         const m = o as THREE.Mesh;
         if (m.geometry) m.geometry.dispose();
