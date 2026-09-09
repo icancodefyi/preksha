@@ -5,14 +5,24 @@
 import { randomUUID } from "node:crypto";
 import { qdrant, COLLECTION } from "@/lib/rag/qdrantClient";
 import { embedPassages, EMBEDDING_DIM } from "@/lib/rag/jina";
-import { firs, discoveries } from "@/lib/data/seed";
+import { firs, discoveries, networkMembers } from "@/lib/data/seed";
+import { dossier, patternAlerts, moneyFlowGraph } from "@/lib/graph/enrich";
 
 interface Doc {
-  sourceType: "fir" | "discovery";
+  sourceType: "fir" | "discovery" | "suspect_profile" | "pattern_alert" | "money_flow";
   sourceId: string;
   label: string;
   text: string;
 }
+
+// CDR/financial/tower-dump are ~10,750 near-duplicate raw rows ("call from
+// X to Y at time Z") — embedding each one is both wasteful and semantically
+// weak (thousands of nearly-identical vectors). Instead this indexes the
+// already-computed DERIVED summaries over that same data — per-suspect
+// dossiers (contacts, money, FIR links — all CDR/financial-backed), pattern
+// alerts (bursts, burner detection — CDR/tower-dump-backed), and the money
+// flow graph — which is both far richer to retrieve and directly answers
+// "specific calls or transactions" questions the FIR-only corpus couldn't.
 
 function buildCorpus(): Doc[] {
   const docs: Doc[] = [];
@@ -39,12 +49,62 @@ function buildCorpus(): Doc[] {
     docs.push({ sourceType: "discovery", sourceId: key, label: `Finding: ${key.replace(/_/g, " ")}`, text });
   }
 
+  for (const m of networkMembers) {
+    const d = dossier(m.key);
+    if (!d) continue;
+    const text = [
+      `${d.name}${d.alias ? ` (alias "${d.alias}")` : ""} — ${d.role}, ${d.cluster} cluster, based in ${d.city}.`,
+      `Phone: ${d.phone}${d.phone2 ? `, secondary ${d.phone2}` : ""}.`,
+      d.topContacts.length
+        ? `Top CDR contacts: ${d.topContacts.map((c) => `${c.name} (${c.calls} calls)`).join(", ")}.`
+        : "",
+      d.money.txns > 0
+        ? `Financial activity: ₹${Math.round(d.money.inflow).toLocaleString("en-IN")} inflow, ₹${Math.round(d.money.outflow).toLocaleString("en-IN")} outflow across ${d.money.txns} transactions.`
+        : "",
+      d.bankAccounts.length ? `Bank accounts: ${d.bankAccounts.map((b) => `${b.bank} ${b.acct}`).join(", ")}.` : "",
+      d.firs.length ? `Linked FIRs: ${d.firs.map((f) => `${f.fir_no} (${f.title})`).join("; ")}.` : "",
+      d.metrics ? `Network metrics: betweenness ${d.metrics.betweenness}, pagerank ${d.metrics.pagerank}.` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+    docs.push({ sourceType: "suspect_profile", sourceId: m.key, label: `Profile: ${d.name}`, text });
+  }
+
+  patternAlerts().forEach((a, i) => {
+    const text = [`${a.title} (${a.severity} severity)`, a.detail, a.evidence.length ? `Evidence: ${a.evidence.join("; ")}` : ""]
+      .filter(Boolean)
+      .join("\n");
+    // sourceId must be whitespace-free — it's matched later as a bracketed
+    // citation token (lib/rag/localAnswer.ts), which excludes whitespace.
+    docs.push({ sourceType: "pattern_alert", sourceId: `alert_${a.type}_${i}`, label: `Alert: ${a.title}`, text });
+  });
+
+  const mf = moneyFlowGraph();
+  const topFlows = mf.edges.slice(0, 15);
+  if (topFlows.length) {
+    const text = [
+      "Money flow graph — largest fund transfers between entities in the network:",
+      ...topFlows.map((e) => `${e.from} -> ${e.to}: ₹${Math.round(e.amount).toLocaleString("en-IN")} across ${e.txns} transaction(s)`),
+      "",
+      "Entities by total volume: " +
+        mf.nodes
+          .slice(0, 10)
+          .map((n) => `${n.name} (${n.role}, in ₹${Math.round(n.inflow).toLocaleString("en-IN")} / out ₹${Math.round(n.outflow).toLocaleString("en-IN")})`)
+          .join(", "),
+    ].join("\n");
+    docs.push({ sourceType: "money_flow", sourceId: "money_flow_graph", label: "Money flow graph summary", text });
+  }
+
   return docs;
 }
 
 async function main() {
   const docs = buildCorpus();
-  console.log(`Corpus: ${docs.length} documents (${docs.filter((d) => d.sourceType === "fir").length} FIRs, ${docs.filter((d) => d.sourceType === "discovery").length} discoveries)`);
+  const counts = docs.reduce<Record<string, number>>((acc, d) => {
+    acc[d.sourceType] = (acc[d.sourceType] ?? 0) + 1;
+    return acc;
+  }, {});
+  console.log(`Corpus: ${docs.length} documents — ${Object.entries(counts).map(([k, v]) => `${v} ${k}`).join(", ")}`);
 
   const exists = await qdrant.collectionExists(COLLECTION);
   if (exists.exists) {

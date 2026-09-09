@@ -51,7 +51,11 @@ export default function SimulatePage() {
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState(1);
   const [time, setTime] = useState(0);
-  const controller = useRef<SimController>({ t: 0, playing: true, speed: 1 });
+  const controller = useRef<SimController>({ t: 0, playing: true, speed: 1, autoCam: true });
+  const [autoCam, setAutoCam] = useState(true);
+  useEffect(() => {
+    controller.current.autoCam = autoCam;
+  }, [autoCam]);
   const emitRef = useRef(0);
 
   useEffect(() => {
@@ -333,6 +337,17 @@ export default function SimulatePage() {
               title="Narration language"
             >
               {LANG_LABEL[lang] ?? "EN"}
+            </button>
+            <button
+              onClick={() => setAutoCam(true)}
+              className={`h-11 rounded-full border px-4 text-sm font-medium transition ${
+                autoCam
+                  ? "border-white/15 text-neutral-400 hover:border-white/40"
+                  : "border-sky-400/50 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20"
+              }`}
+              title="Re-enable cinematic camera (drag the scene to orbit, scroll to zoom)"
+            >
+              {autoCam ? "Auto cam" : "Auto cam ↺"}
             </button>
             <div className="ml-auto font-mono text-sm tabular-nums text-neutral-400">
               {time.toFixed(1)}s / {data?.duration ?? 0}s

@@ -4,7 +4,22 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { WsShell } from "@/components/ws/ws-shell";
 import { cn } from "@/lib/utils";
-import { Loader2, ArrowUpRight, Grip, Target, ShieldX, GitBranch, Phone, MapPin } from "lucide-react";
+import {
+  Loader2,
+  ArrowUpRight,
+  Grip,
+  Target,
+  ShieldX,
+  GitBranch,
+  Phone,
+  MapPin,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Landmark,
+  CreditCard,
+  FileText,
+} from "lucide-react";
 
 interface GraphNode {
   id: string;
@@ -45,6 +60,11 @@ interface Dossier {
   topContacts: { name: string; calls: number }[];
   money: { inflow: number; outflow: number; txns: number };
   metrics: { betweenness: number; pagerank: number } | null;
+  // Already returned by /api/suspects/[key] (lib/graph/enrich.ts dossier())
+  // but never wired up in this panel until now.
+  firs: { fir_no: string; title: string; category: string; year: number }[];
+  bankAccounts: { bank: string; acct: string }[];
+  verifiedAddress: string;
 }
 
 const CLUSTER_COLOR: Record<string, string> = {
@@ -150,6 +170,35 @@ export default function NetworkPage() {
   const dragRef = useRef<{ x: number; y: number } | null>(null);
   const [positions, setPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
 
+  // Zoom/pan: contents render inside a <g transform> whose translate/scale
+  // this state drives, independent of the fixed 1000x620 viewBox — wheel to
+  // zoom (toward the cursor), drag empty canvas to pan, buttons for
+  // discoverability since a scroll gesture alone is easy to miss.
+  const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
+  const [panning, setPanning] = useState(false);
+  const panRef = useRef<{ x: number; y: number } | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const VIEW_W = 1000;
+  const VIEW_H = 620;
+
+  const [activeClusters, setActiveClusters] = useState<Set<string>>(new Set());
+  const [expandedFir, setExpandedFir] = useState<string | null>(null);
+
+  const jumpToContact = (name: string) => {
+    const n = data?.nodes.find((x) => x.name === name);
+    if (!n) return;
+    select(n);
+    centerOnNode(n);
+  };
+  const toggleCluster = (c: string) => {
+    setActiveClusters((prev) => {
+      const next = new Set(prev);
+      if (next.has(c)) next.delete(c);
+      else next.add(c);
+      return next;
+    });
+  };
+
   useEffect(() => {
     fetch("/api/network")
       .then((r) => r.json())
@@ -158,6 +207,62 @@ export default function NetworkPage() {
         setPositions(forceLayout(d.nodes, d.edges));
       });
   }, []);
+
+  // Screen (client) coords -> the SVG's own 1000x620 viewBox coords.
+  const toViewBoxPoint = (clientX: number, clientY: number) => {
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return { x: ((clientX - rect.left) / rect.width) * VIEW_W, y: ((clientY - rect.top) / rect.height) * VIEW_H };
+  };
+
+  const zoomBy = (factor: number, center?: { x: number; y: number }) => {
+    setView((v) => {
+      const nextScale = Math.min(4, Math.max(0.4, v.scale * factor));
+      const c = center ?? { x: VIEW_W / 2, y: VIEW_H / 2 };
+      // keep the point under `center` fixed on screen while scale changes
+      const worldX = (c.x - v.x) / v.scale;
+      const worldY = (c.y - v.y) / v.scale;
+      return { scale: nextScale, x: c.x - worldX * nextScale, y: c.y - worldY * nextScale };
+    });
+  };
+
+  const resetView = () => setView({ x: 0, y: 0, scale: 1 });
+
+  const centerOnNode = (n: GraphNode) => {
+    const p = positions.get(n.id);
+    if (!p) return;
+    setView((v) => {
+      const scale = Math.max(v.scale, 1.4);
+      return { scale, x: VIEW_W / 2 - p.x * scale, y: VIEW_H / 2 - p.y * scale };
+    });
+  };
+
+  const onWheel = (e: React.WheelEvent<SVGSVGElement>) => {
+    e.preventDefault();
+    const center = toViewBoxPoint(e.clientX, e.clientY);
+    zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15, center);
+  };
+
+  const backgroundPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (e.button !== 0) return;
+    setPanning(true);
+    panRef.current = { x: e.clientX, y: e.clientY };
+  };
+  const backgroundPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (panning && panRef.current) {
+      const dx = e.clientX - panRef.current.x;
+      const dy = e.clientY - panRef.current.y;
+      panRef.current = { x: e.clientX, y: e.clientY };
+      setView((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
+      return;
+    }
+    pointerMove(e);
+  };
+  const backgroundPointerUp = () => {
+    setPanning(false);
+    panRef.current = null;
+    pointerUp();
+  };
 
   const bMax = useMemo(
     () => (data ? Math.max(...data.nodes.map((n) => data.metrics[n.id]?.betweenness ?? 0), 0.0001) : 1),
@@ -169,6 +274,7 @@ export default function NetworkPage() {
   const select = async (n: GraphNode) => {
     setSelected(n);
     setDossier(null);
+    setExpandedFir(null);
     setDossierLoading(true);
     try {
       const r = await fetch(`/api/suspects/${n.key}`);
@@ -180,6 +286,7 @@ export default function NetworkPage() {
 
   const pointerDown = (e: React.PointerEvent, n: GraphNode) => {
     if (e.button !== 0) return;
+    e.stopPropagation(); // don't also start a background pan
     select(n);
     setDragId(n.id);
     dragRef.current = { x: e.clientX, y: e.clientY };
@@ -190,11 +297,15 @@ export default function NetworkPage() {
     const dx = e.clientX - dragRef.current.x;
     const dy = e.clientY - dragRef.current.y;
     dragRef.current = { x: e.clientX, y: e.clientY };
-    const scale = 1000 / 960;
+    const rect = svgRef.current?.getBoundingClientRect();
+    // viewBox-units per screen-pixel, adjusted for the current zoom level —
+    // without dividing by view.scale, dragging a zoomed-in node would fling
+    // it far past the cursor.
+    const pxToViewBox = rect ? VIEW_W / rect.width / view.scale : 1;
     setPositions((prev) => {
       const next = new Map(prev);
       const p = next.get(dragId)!;
-      next.set(dragId, { x: p.x + dx * scale, y: p.y + dy * scale });
+      next.set(dragId, { x: p.x + dx * pxToViewBox, y: p.y + dy * pxToViewBox });
       return next;
     });
   };
@@ -226,19 +337,58 @@ export default function NetworkPage() {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         {/* Graph canvas */}
         <div className="relative overflow-hidden rounded-3xl border border-neutral-200/80 bg-white shadow-[0_1px_2px_rgba(16,15,25,0.04),0_12px_32px_-12px_rgba(16,15,25,0.10)]">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-neutral-100 px-5 py-3">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-neutral-100 px-5 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Graph</p>
             {Object.entries(CLUSTER_COLOR)
               .filter(([c]) => data?.nodes.some((n) => n.cluster === c))
-              .map(([c, color]) => (
-                <span key={c} className="flex items-center gap-1.5 text-[11px] font-medium text-neutral-500">
-                  <span className="size-2 rounded-full" style={{ backgroundColor: color }} />
-                  {c}
-                </span>
-              ))}
-            <span className="ml-auto flex items-center gap-1.5 text-[11px] font-medium text-neutral-400">
-              <GitBranch className="size-3.5" />
-              {data ? `${data.nodes.length} nodes · ${data.edges.length} links` : "…"}
+              .map(([c, color]) => {
+                const active = activeClusters.has(c);
+                const noneActive = activeClusters.size === 0;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => toggleCluster(c)}
+                    title={`Filter to “${c}” cluster — click again to clear`}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-medium transition-colors",
+                      active
+                        ? "border-neutral-950 bg-neutral-950 text-white"
+                        : noneActive
+                          ? "border-transparent text-neutral-500 hover:bg-neutral-50"
+                          : "border-transparent text-neutral-300 hover:bg-neutral-50 hover:text-neutral-600",
+                    )}
+                  >
+                    <span className="size-2 rounded-full" style={{ backgroundColor: active ? "#fff" : color }} />
+                    {c}
+                  </button>
+                );
+              })}
+            {activeClusters.size > 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveClusters(new Set())}
+                className="rounded-full px-2 py-1 text-[11px] font-medium text-neutral-400 underline decoration-dotted hover:text-neutral-700"
+              >
+                clear filter
+              </button>
+            )}
+            <span className="ml-auto flex items-center gap-2">
+              <span className="flex items-center gap-1.5 text-[11px] font-medium text-neutral-400">
+                <GitBranch className="size-3.5" />
+                {data ? `${data.nodes.length} nodes · ${data.edges.length} links` : "…"}
+              </span>
+              <span className="flex items-center gap-1 rounded-full border border-neutral-200 bg-white p-0.5">
+                <button type="button" onClick={() => zoomBy(1 / 1.25)} title="Zoom out" className="flex size-6 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100">
+                  <ZoomOut className="size-3.5" />
+                </button>
+                <button type="button" onClick={resetView} title="Reset view" className="flex size-6 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100">
+                  <Maximize2 className="size-3.5" />
+                </button>
+                <button type="button" onClick={() => zoomBy(1.25)} title="Zoom in" className="flex size-6 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100">
+                  <ZoomIn className="size-3.5" />
+                </button>
+              </span>
             </span>
           </div>
 
@@ -248,20 +398,36 @@ export default function NetworkPage() {
                 <Loader2 className="size-4 animate-spin" /> Building graph…
               </div>
             ) : (
-              <svg viewBox="0 0 1000 620" preserveAspectRatio="xMidYMid meet" className="h-full w-full"
-                onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerLeave={pointerUp}>
+              <svg
+                ref={svgRef}
+                viewBox="0 0 1000 620"
+                preserveAspectRatio="xMidYMid meet"
+                className={cn("h-full w-full", panning ? "cursor-grabbing" : "cursor-grab")}
+                onWheel={onWheel}
+                onPointerDown={backgroundPointerDown}
+                onPointerMove={backgroundPointerMove}
+                onPointerUp={backgroundPointerUp}
+                onPointerLeave={backgroundPointerUp}
+              >
+                <g transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
                 {data.edges.map((e, i) => {
                   const a = positions.get(e.source);
                   const b = positions.get(e.target);
                   if (!a || !b) return null;
                   const w = e.weight / Math.max(...data.edges.map((x) => x.weight), 1);
+                  const srcNode = data.nodes.find((n) => n.id === e.source);
+                  const tgtNode = data.nodes.find((n) => n.id === e.target);
+                  const dimmed =
+                    activeClusters.size > 0 &&
+                    !(srcNode && activeClusters.has(srcNode.cluster)) &&
+                    !(tgtNode && activeClusters.has(tgtNode.cluster));
                   return (
                     <line
                       key={i}
                       x1={a.x} y1={a.y} x2={b.x} y2={b.y}
                       stroke="#8b8b94"
                       strokeWidth={0.7 + w * 2.4}
-                      strokeOpacity={0.12 + w * 0.5}
+                      strokeOpacity={dimmed ? 0.04 : 0.12 + w * 0.5}
                     />
                   );
                 })}
@@ -271,10 +437,16 @@ export default function NetworkPage() {
                   const r = radiusOf(n);
                   const color = n.type === "burner" ? "#dc2626" : CLUSTER_COLOR[n.cluster] ?? "#9ca3af";
                   const isSel = selected?.id === n.id;
+                  const dimmed = activeClusters.size > 0 && !activeClusters.has(n.cluster);
                   const label =
                     (data.metrics[n.id]?.betweenness ?? 0) / bMax > 0.1 || n.firCount > 0 || n.type === "burner";
                   return (
-                    <g key={n.id} onPointerDown={(e) => pointerDown(e, n)} className="cursor-pointer">
+                    <g
+                      key={n.id}
+                      onPointerDown={(e) => pointerDown(e, n)}
+                      className="cursor-pointer"
+                      opacity={dimmed ? 0.16 : 1}
+                    >
                       {isSel && (
                         <circle cx={p.x} cy={p.y} r={r + 7} fill="none" stroke="#17152A" strokeWidth={1.5} strokeDasharray="4 3" />
                       )}
@@ -298,6 +470,7 @@ export default function NetworkPage() {
                     </g>
                   );
                 })}
+                </g>
               </svg>
             )}
           </div>
@@ -365,13 +538,105 @@ export default function NetworkPage() {
 
                 {dossier && dossier.topContacts.length > 0 && (
                   <div className="mt-4">
-                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Top contacts</p>
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
+                      Top contacts <span className="normal-case text-neutral-300">· click to jump to them in the graph</span>
+                    </p>
                     <div className="flex flex-wrap gap-1.5">
-                      {dossier.topContacts.slice(0, 4).map((c, i) => (
-                        <span key={i} className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-600">
+                      {dossier.topContacts.slice(0, 6).map((c, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => jumpToContact(c.name)}
+                          className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-600 transition-colors hover:border-neutral-950 hover:text-neutral-950"
+                        >
                           {c.name}
                           <span className="ml-1 tabular-nums text-neutral-400">{c.calls}</span>
-                        </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {dossier && dossier.money.txns > 0 && (
+                  <div className="mt-4">
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Financial activity</p>
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex-1 rounded-2xl bg-neutral-50 px-3.5 py-3">
+                        <p className="text-[15px] font-medium tabular-nums leading-none tracking-[-0.02em] text-neutral-950">
+                          ₹{dossier.money.inflow.toLocaleString("en-IN")}
+                        </p>
+                        <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">Inflow</p>
+                      </div>
+                      <div className="flex-1 rounded-2xl bg-neutral-50 px-3.5 py-3">
+                        <p className="text-[15px] font-medium tabular-nums leading-none tracking-[-0.02em] text-neutral-950">
+                          ₹{dossier.money.outflow.toLocaleString("en-IN")}
+                        </p>
+                        <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">Outflow</p>
+                      </div>
+                      <div className="flex-1 rounded-2xl bg-neutral-50 px-3.5 py-3">
+                        <p className="text-[15px] font-medium tabular-nums leading-none tracking-[-0.02em] text-neutral-950">
+                          {dossier.money.txns}
+                        </p>
+                        <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">Txns</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {dossier && dossier.firs.length > 0 && (
+                  <div className="mt-4">
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
+                      Linked FIRs <span className="normal-case text-neutral-300">· click for details</span>
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {dossier.firs.map((f) => (
+                        <button
+                          key={f.fir_no}
+                          type="button"
+                          onClick={() => setExpandedFir((cur) => (cur === f.fir_no ? null : f.fir_no))}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                            expandedFir === f.fir_no
+                              ? "border-neutral-950 bg-neutral-950 text-white"
+                              : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-950 hover:text-neutral-950",
+                          )}
+                        >
+                          <FileText className="size-3" />
+                          {f.fir_no}
+                        </button>
+                      ))}
+                    </div>
+                    {expandedFir && (
+                      (() => {
+                        const f = dossier.firs.find((x) => x.fir_no === expandedFir);
+                        if (!f) return null;
+                        return (
+                          <div className="mt-2 rounded-2xl bg-neutral-50 px-3.5 py-3 text-[11.5px] leading-[1.6] text-neutral-600">
+                            <p className="font-semibold text-neutral-900">{f.title}</p>
+                            <p className="mt-0.5 text-neutral-400">{f.category} · {f.year}</p>
+                            <Link href="/evidence" className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-neutral-950 hover:underline">
+                              View in evidence chain <ArrowUpRight className="size-3" />
+                            </Link>
+                          </div>
+                        );
+                      })()
+                    )}
+                  </div>
+                )}
+
+                {dossier && dossier.bankAccounts.length > 0 && (
+                  <div className="mt-4">
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Bank accounts</p>
+                    <div className="space-y-1.5">
+                      {dossier.bankAccounts.map((b, i) => (
+                        <div key={i} className="flex items-center gap-2 rounded-xl border border-neutral-100 bg-white px-2.5 py-1.5 text-[11.5px] text-neutral-600">
+                          <Landmark className="size-3.5 text-neutral-400" />
+                          <span className="font-medium text-neutral-800">{b.bank}</span>
+                          <span className="ml-auto flex items-center gap-1 tabular-nums text-neutral-400">
+                            <CreditCard className="size-3" />
+                            {b.acct}
+                          </span>
+                        </div>
                       ))}
                     </div>
                   </div>
