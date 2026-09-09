@@ -280,7 +280,69 @@ function makePerson(id: string, color: string, name: string): Figure {
   return { group, torso, leftLeg, rightLeg, leftArm, rightArm, phone, gun, label, glow, walkPhase: 0 };
 }
 
-function makeBike(color: string): THREE.Group {
+function makePlate(text: string, caption: string | null): { group: THREE.Group; frame: THREE.Mesh; label: THREE.Sprite } {
+  const group = new THREE.Group();
+  const box = new THREE.Mesh(
+    new THREE.BoxGeometry(0.38, 0.16, 0.03),
+    new THREE.MeshStandardMaterial({ color: 0xdfe3ec, roughness: 0.35, metalness: 0.3 }),
+  );
+  group.add(box);
+  const num = makeLabel(text, "#0a0d14", { size: 30 });
+  num.scale.set(0.34, 0.13, 1);
+  num.position.set(0, 0, 0.028);
+  group.add(num);
+
+  const frame = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.3, 0.05),
+    new THREE.MeshBasicMaterial({
+      color: 0xffd54a,
+      transparent: true,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    }),
+  );
+  frame.position.set(0, 0, -0.02);
+  frame.visible = false;
+  group.add(frame);
+
+  const label = caption
+    ? makeLabel(caption, "#ffd54a", { pill: true, size: 34 })
+    : (new THREE.Sprite(new THREE.SpriteMaterial({ visible: false })));
+  label.position.set(0, 0.85, 0);
+  label.visible = false;
+  group.add(label);
+
+  return { group, frame, label };
+}
+
+function makeRider(shirtColor: string): THREE.Group {
+  const g = new THREE.Group();
+  const shirt = new THREE.MeshStandardMaterial({ color: shirtColor, roughness: 0.8 });
+  const helmet = new THREE.MeshStandardMaterial({ color: 0x131721, roughness: 0.3, metalness: 0.5 });
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.23, 0.5, 10), shirt);
+  torso.position.y = 0.75;
+  torso.rotation.x = -0.5;
+  g.add(torso);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 16), helmet);
+  head.position.set(0, 1.1, 0.14);
+  g.add(head);
+  const armGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.44, 8);
+  const armL = new THREE.Mesh(armGeo, shirt);
+  armL.position.set(-0.2, 0.86, 0.32);
+  armL.rotation.x = 0.9;
+  const armR = new THREE.Mesh(armGeo, shirt);
+  armR.position.set(0.2, 0.86, 0.32);
+  armR.rotation.x = 0.9;
+  g.add(armL, armR);
+  return g;
+}
+
+function makeBike(
+  color: string,
+  plateText: string,
+  caption: string | null,
+): { group: THREE.Group; plate: { group: THREE.Group; frame: THREE.Mesh; label: THREE.Sprite } } {
   const g = new THREE.Group();
   const dark = new THREE.MeshStandardMaterial({ color: 0x11151f, roughness: 0.6, metalness: 0.5 });
   const accent = new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.6 });
@@ -298,8 +360,10 @@ function makeBike(color: string): THREE.Group {
   const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 8), dark);
   handle.rotation.z = Math.PI / 2;
   handle.position.set(0, 1.0, 0.5);
-  g.add(w1, w2, body, seat, tank, handle);
-  return g;
+  const plate = makePlate(plateText, caption);
+  plate.group.position.set(0, 0.55, -0.64);
+  g.add(w1, w2, body, seat, tank, handle, plate.group);
+  return { group: g, plate };
 }
 
 // fully-enclosed interior room (no exterior bleed) with a doorway + backdrop
@@ -600,15 +664,28 @@ export default function SimScene({
     }
 
     // escape motorcycles parked near the store
-    const bike1 = makeBike("#14141c");
-    bike1.position.set(data.scene.x - 2.6, 0, data.scene.z + 1.2);
-    bike1.rotation.y = 0.4;
-    bike1.scale.setScalar(0.9);
-    const bike2 = makeBike("#1a1420");
-    bike2.position.set(data.scene.x + 2.4, 0, data.scene.z + 1.5);
-    bike2.rotation.y = -0.5;
-    bike2.scale.setScalar(0.9);
-    scene.add(bike1, bike2);
+    const bikeA = makeBike("#14141c", "MH 01 AB 1234", "MH 01 AB 1234 · BLACK PULSAR · FIR 1201/2023");
+    bikeA.group.position.set(data.scene.x - 2.6, 0, data.scene.z + 1.2);
+    bikeA.group.rotation.y = 0.4;
+    bikeA.group.scale.setScalar(0.9);
+    const bikeB = makeBike("#1a1420", "MH 01 CD 5678", null);
+    bikeB.group.position.set(data.scene.x + 2.4, 0, data.scene.z + 1.5);
+    bikeB.group.rotation.y = -0.5;
+    bikeB.group.scale.setScalar(0.9);
+    scene.add(bikeA.group, bikeB.group);
+
+    const riderA = makeRider("#c07f1d"); // Mohammed
+    riderA.position.set(0, 0.55, -0.05);
+    riderA.visible = false;
+    bikeA.group.add(riderA);
+    const pillion = makeRider("#16669e"); // Ravi
+    pillion.position.set(0, 0.6, -0.42);
+    pillion.visible = false;
+    bikeA.group.add(pillion);
+    const riderB = makeRider("#5c4fc4"); // Santosh
+    riderB.position.set(0, 0.55, -0.05);
+    riderB.visible = false;
+    bikeB.group.add(riderB);
 
     // --- exterior people
     const figures: Record<string, Figure> = {};
@@ -788,7 +865,9 @@ export default function SimScene({
     const sx = data.scene.x;
     const sz = data.scene.z;
     const EXTERIOR = { pos: new THREE.Vector3(-6, 14, 30), tgt: new THREE.Vector3(-1.5, 1.2, 0) };
-    const ESCAPE = { pos: new THREE.Vector3(sx - 4, 8, sz + 16), tgt: new THREE.Vector3(sx, 1.2, sz + 1) };
+    const ESCAPE = { pos: new THREE.Vector3(sx - 2, 6, sz + 15), tgt: new THREE.Vector3(sx, 1.2, sz + 2) };
+    const CHASE = { pos: new THREE.Vector3(sx - 2.6, 2.4, sz + 2.5), tgt: new THREE.Vector3(sx - 2.6, 0.7, sz + 9) };
+    const PLATE = { pos: new THREE.Vector3(sx - 2.6, 0.6, sz + 6.2), tgt: new THREE.Vector3(sx - 2.6, 0.5, sz + 8.6) };
     const MONEY = { pos: new THREE.Vector3(-9, 17, 26), tgt: new THREE.Vector3(-2, 1.5, 0) };
     const camTgt = EXTERIOR.tgt.clone();
 
@@ -804,7 +883,9 @@ export default function SimScene({
     function rigFor(t: number) {
       if (t < 53.5) return EXTERIOR;
       if (t < 64) return interiorRig(t);
-      if (t < 84) return ESCAPE;
+      if (t < 73) return ESCAPE;
+      if (t < 80) return CHASE;
+      if (t < 84) return PLATE;
       if (t < 116) return MONEY;
       return EXTERIOR;
     }
@@ -850,9 +931,10 @@ export default function SimScene({
 
     function update(t: number) {
       const interior = isInterior(t);
+      const escaping = t >= 64 && t < 84;
       store.visible = !interior;
-      bike1.visible = !interior;
-      bike2.visible = !interior;
+      bikeA.group.visible = !interior && !escaping;
+      bikeB.group.visible = !interior && !escaping;
       room.visible = interior;
 
       onCall.clear();
@@ -868,8 +950,10 @@ export default function SimScene({
         if (a.kind === "entity") continue;
         const fig = figures[a.id];
         const p = actorPos(a.id, t);
-        const hiddenByInterior = interior && (a.id === "mohammed" || a.id === "ravi" || a.id === "santosh" || a.id === "rajesh2");
-        fig.group.visible = p.visible && !hiddenByInterior;
+        const isRobber = a.id === "mohammed" || a.id === "ravi" || a.id === "santosh";
+        const hiddenByInterior = interior && (isRobber || a.id === "rajesh2");
+        const hiddenByEscape = escaping && isRobber;
+        fig.group.visible = p.visible && !hiddenByInterior && !hiddenByEscape;
         if (!fig.group.visible) continue;
         const prev = prevPos[a.id] ?? { x: p.x, z: p.z };
         const dx = p.x - prev.x;
@@ -943,6 +1027,79 @@ export default function SimScene({
         worker1.group.visible = false;
         worker2.group.visible = false;
         for (const id of ["mohammed", "ravi", "santosh"]) interiorRobbers[id].group.visible = false;
+      }
+
+      // --- escape: sprint to bikes → ride off → numberplate freeze-frame
+      if (escaping) {
+        const b1x = sx - 2.6;
+        const b1z0 = sz + 1.2;
+        const b2x = sx + 2.4;
+        const b2z0 = sz + 1.5;
+        bikeA.group.visible = true;
+        bikeB.group.visible = true;
+        bikeA.plate.frame.visible = false;
+        bikeA.plate.label.visible = false;
+
+        if (t < 70) {
+          // run from the store door to the bikes
+          const u = ease((t - 64) / 6);
+          const run = (id: string, tx: number, tz: number) => {
+            const fig = figures[id];
+            fig.group.visible = true;
+            fig.group.position.set(lerp(sx, tx, u), 0, lerp(sz + 1.4, tz, u));
+            fig.group.rotation.y = Math.atan2(tx - sx, tz - (sz + 1.4));
+            fig.walkPhase += 0.22;
+            const sw = Math.sin(fig.walkPhase) * 0.6;
+            fig.torso.position.y = Math.sin(fig.walkPhase * 2) * 0.05;
+            fig.leftLeg.rotation.x = sw;
+            fig.rightLeg.rotation.x = -sw;
+            fig.leftArm.rotation.x = sw * 0.7;
+            fig.rightArm.rotation.x = -sw * 0.7;
+          };
+          run("mohammed", b1x, b1z0);
+          run("ravi", b1x, b1z0);
+          run("santosh", b2x, b2z0);
+          bikeA.group.rotation.y = 0.2 + Math.sin(t * 40) * 0.01;
+          bikeB.group.rotation.y = -0.2 + Math.sin(t * 40) * 0.01;
+          riderA.visible = false;
+          pillion.visible = false;
+          riderB.visible = false;
+        } else if (t < 73) {
+          // mount up
+          figures["mohammed"].group.visible = false;
+          figures["ravi"].group.visible = false;
+          figures["santosh"].group.visible = false;
+          bikeA.group.rotation.y = 0;
+          bikeB.group.rotation.y = 0;
+          riderA.visible = true;
+          pillion.visible = true;
+          riderB.visible = true;
+          const rev = Math.sin(t * 50) * 0.02;
+          bikeA.group.position.y = rev;
+          bikeB.group.position.y = rev;
+        } else if (t < 80) {
+          // ride away down the road
+          const u = ease((t - 73) / 7);
+          bikeA.group.position.set(b1x, Math.sin(t * 45) * 0.015, lerp(b1z0, sz + 9, u));
+          bikeA.group.rotation.y = 0;
+          bikeB.group.position.set(b2x, Math.sin(t * 45) * 0.015, lerp(b2z0, sz + 7.5, u));
+          bikeB.group.rotation.y = 0;
+          riderA.visible = true;
+          pillion.visible = true;
+          riderB.visible = true;
+        } else {
+          // numberplate freeze-frame highlight
+          bikeA.group.position.set(b1x, 0, sz + 9);
+          bikeA.group.rotation.y = 0;
+          bikeB.group.visible = false;
+          riderA.visible = true;
+          pillion.visible = true;
+          bikeA.plate.frame.visible = true;
+          bikeA.plate.label.visible = true;
+        }
+      } else if (t >= 84) {
+        bikeA.plate.frame.visible = false;
+        bikeA.plate.label.visible = false;
       }
 
       // --- events
