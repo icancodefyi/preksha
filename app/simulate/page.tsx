@@ -27,7 +27,11 @@ const NARRATION_SEGMENTS: { t: number; key: string }[] = [
 const NARRATION_AUDIO: Record<string, Record<string, string>> = {
   en: Object.fromEntries(NARRATION_SEGMENTS.map((s) => [s.key, `/audio/narration/en/${s.key}.mp3`])),
   hi: Object.fromEntries(NARRATION_SEGMENTS.map((s) => [s.key, `/audio/narration/hi/${s.key}.mp3`])),
+  hinglish: Object.fromEntries(NARRATION_SEGMENTS.map((s) => [s.key, `/audio/narration/hinglish/${s.key}.mp3`])),
 };
+
+const LANG_LABEL: Record<string, string> = { en: "EN", hi: "हिंदी", hinglish: "हिंग्लिश" };
+const LANG_ORDER: string[] = ["en", "hi", "hinglish"];
 
 export default function SimulatePage() {
   const [data, setData] = useState<SimData | null>(null);
@@ -119,7 +123,7 @@ export default function SimulatePage() {
 
   // --- suspense narration (real voice via audio files, continuous)
   const [voiceOn, setVoiceOn] = useState(true);
-  const [lang, setLang] = useState<"en" | "hi">("en");
+  const [lang, setLang] = useState<string>("en");
   const [narrationMissing, setNarrationMissing] = useState(false);
   const lastPlayedRef = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -324,11 +328,11 @@ export default function SimulatePage() {
               {voiceOn ? "Narration on" : "Narration off"}
             </button>
             <button
-              onClick={() => setLang((l) => (l === "en" ? "hi" : "en"))}
+              onClick={() => setLang((l) => LANG_ORDER[(LANG_ORDER.indexOf(l) + 1) % LANG_ORDER.length])}
               className="h-11 rounded-full border border-white/15 px-4 text-sm font-medium text-neutral-200 transition hover:border-white/40"
               title="Narration language"
             >
-              {lang === "en" ? "EN" : "हिंदी"}
+              {LANG_LABEL[lang] ?? "EN"}
             </button>
             <div className="ml-auto font-mono text-sm tabular-nums text-neutral-400">
               {time.toFixed(1)}s / {data?.duration ?? 0}s
