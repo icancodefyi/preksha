@@ -33,7 +33,7 @@ export default function Nav() {
           Security
         </a>
       </div>
-      <a className="land-nav-cta land-btn" href="#contact">
+      <a className="land-nav-cta land-btn" href="/dashboard">
         Get Started
       </a>
     </nav>

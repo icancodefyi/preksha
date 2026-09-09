@@ -258,7 +258,7 @@ export default function Home() {
             report.
           </p>
           <div className="land-hero-actions">
-            <a className="land-btn" href="#top">
+            <a className="land-btn" href="/dashboard">
               Explore the Platform
             </a>
           </div>
