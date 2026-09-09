@@ -32,8 +32,11 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/cases/[id]/
     // Minimal type gate for MVP (S7 file upload validation) — structured
     // sources are CSV only; broader MIME/malware scanning is a production
     // hardening item (docs/ARCHITECTURE.md Phase 9.2), not skipped silently.
-    if (["cdr", "financial", "tower_dump"].includes(sourceType) && !file.name.toLowerCase().endsWith(".csv")) {
+    if (["cdr", "financial", "tower_dump", "cctv"].includes(sourceType) && !file.name.toLowerCase().endsWith(".csv")) {
       throw new ApiError(422, "validation_error", `source_type "${sourceType}" requires a .csv file`);
+    }
+    if (sourceType === "fir" && !/\.(pdf|txt)$/i.test(file.name)) {
+      throw new ApiError(422, "validation_error", 'source_type "fir" requires a .pdf (text layer) or .txt file');
     }
 
     const buf = Buffer.from(await file.arrayBuffer());

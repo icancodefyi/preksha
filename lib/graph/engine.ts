@@ -174,7 +174,7 @@ export function buildGraph(): NetworkGraph {
   };
 }
 
-function computeMetrics(
+export function computeMetrics(
   nodes: GraphNode[],
   rawEdges: { source: string; target: string; weight: number }[],
 ): Record<string, NodeMetrics> {

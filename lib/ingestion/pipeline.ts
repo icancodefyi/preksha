@@ -3,13 +3,17 @@ import { getObject } from "@/lib/storage/objectStore";
 import { parseCdrCsv } from "@/lib/ingestion/cdr";
 import { parseFinancialCsv } from "@/lib/ingestion/financial";
 import { parseTowerDumpCsv } from "@/lib/ingestion/towerDump";
+import { parseCctvCsv } from "@/lib/ingestion/cctv";
 import type { RowError } from "@/lib/ingestion/parseCsv";
+import { detectImeiSharing } from "@/lib/entity-resolution/imeiSharing";
+import { extractText } from "@/lib/ingestion/extractText";
+import { extractFirEntities } from "@/lib/ingestion/firExtractor";
 
 export type SourceType = "fir" | "cdr" | "ipdr" | "financial" | "tower_dump" | "cctv" | "other";
 
 // Structured (non-FIR) sources go straight from validated bytes to persisted
 // rows — no OCR/NLP stage needed (Phase 5.1's pipeline collapses for these).
-const STRUCTURED_SOURCES: SourceType[] = ["cdr", "financial", "tower_dump"];
+const STRUCTURED_SOURCES: SourceType[] = ["cdr", "financial", "tower_dump", "cctv"];
 
 export function isStructuredSource(sourceType: string): sourceType is (typeof STRUCTURED_SOURCES)[number] {
   return (STRUCTURED_SOURCES as string[]).includes(sourceType);
@@ -32,14 +36,24 @@ export async function processJob(jobId: string): Promise<void> {
   });
 
   try {
+    if (job.file.sourceType === "fir") {
+      await processFir(job.caseId, job.fileId);
+      await prisma.ingestionJob.update({
+        where: { id: jobId },
+        data: { status: "succeeded", finishedAt: new Date() },
+      });
+      return;
+    }
+
     if (!isStructuredSource(job.file.sourceType)) {
-      // FIR/IPDR/CCTV: OCR+NLP pipeline lands here in a later pass (Phase 17
-      // step 3 continuation). Fail loud rather than silently no-op (Principle 17).
+      // IPDR/CCTV: not yet implemented. Fail loud rather than silently
+      // no-op (Principle 17) — future scope per docs Phase 12.1/13.
       throw new Error(`No processor registered yet for source_type "${job.file.sourceType}"`);
     }
 
     const bytes = await getObject(job.file.objectStorageKey);
     const { inserted, errors } = await persistStructuredRows(job.caseId, job.fileId, job.file.sourceType, bytes);
+    console.log(`[ingestion] job ${jobId}: inserted ${inserted} row(s), ${errors.length} error(s)`);
 
     await prisma.evidence.create({
       data: {
@@ -52,6 +66,13 @@ export async function processJob(jobId: string): Promise<void> {
         confidence: 1.0, // deterministic CSV parse, not a probabilistic model
       },
     });
+
+    // Incremental cross-reference (Phase 1 §0 / Gap #10): run the cheap
+    // deterministic entity-resolution signal available from this source
+    // right away rather than waiting for a separate batch step.
+    if (job.file.sourceType === "cdr") {
+      await detectImeiSharing(job.caseId);
+    }
 
     await prisma.ingestionJob.update({
       where: { id: jobId },
@@ -115,7 +136,51 @@ async function persistStructuredRows(
     });
     return { inserted: count, errors };
   }
+  if (sourceType === "cctv") {
+    const { rows, errors } = parseCctvCsv(bytes);
+    const existing = new Set(
+      (await prisma.observation.findMany({ where: { caseId }, select: { dumpId: true } })).map((r) => r.dumpId),
+    );
+    const fresh = rows.filter((r) => !existing.has(r.dumpId));
+    const { count } = await prisma.observation.createMany({
+      data: fresh.map((r) => ({ caseId, fileId, source: "cctv", phone: null, imei: null, ...r })),
+    });
+    return { inserted: count, errors };
+  }
   throw new Error(`Unhandled structured source_type "${sourceType}"`);
+}
+
+const EXTRACTOR_VERSION = "regex_gazetteer_v1";
+
+async function processFir(caseId: string, fileId: string): Promise<void> {
+  const file = await prisma.fileRecord.findUniqueOrThrow({ where: { id: fileId } });
+  const bytes = await getObject(file.objectStorageKey);
+  const narrative = await extractText(bytes, file.filename);
+  const extracted = extractFirEntities(narrative);
+
+  await prisma.$transaction([
+    prisma.fir.create({
+      data: {
+        caseId,
+        fileId,
+        firNo: extracted.firNo,
+        narrative,
+        extractedEntities: extracted as unknown as object,
+        extractorVersion: EXTRACTOR_VERSION,
+      },
+    }),
+    prisma.evidence.create({
+      data: {
+        caseId,
+        fileId,
+        stage: "extraction",
+        recordType: "fir_entity",
+        recordId: fileId,
+        extractor: EXTRACTOR_VERSION,
+        confidence: extracted.confidence,
+      },
+    }),
+  ]);
 }
 
 function summarizeErrors(errors: RowError[]): string {

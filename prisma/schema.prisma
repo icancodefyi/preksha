@@ -72,6 +72,7 @@ model Case {
   communicationEvents CommunicationEvent[]
   transactions        Transaction[]
   observations        Observation[]
+  firs                Fir[]
 
   @@map("cases")
 }
@@ -109,6 +110,7 @@ model FileRecord {
   communicationEvents CommunicationEvent[]
   transactions        Transaction[]
   observations        Observation[]
+  firs                Fir[]
 
   @@unique([caseId, contentHash])
   @@map("files")
@@ -187,6 +189,26 @@ model Observation {
   @@index([caseId, phone])
   @@index([caseId, timestamp])
   @@map("observations")
+}
+
+// FIR: structured record + regex/gazetteer-extracted entities (Phase 12.5 §1
+// tier (a) — the local, zero-ML fallback; a fine-tuned NER model is a
+// production upgrade behind the same shape, not a schema change).
+model Fir {
+  id                String   @id @default(uuid())
+  caseId            String   @map("case_id")
+  fileId            String   @map("file_id")
+  firNo             String?  @map("fir_no")
+  narrative         String
+  extractedEntities Json     @map("extracted_entities") // { persons, phones, locations, vehicles, sections }
+  extractorVersion  String   @map("extractor_version")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  case Case       @relation(fields: [caseId], references: [id])
+  file FileRecord @relation(fields: [fileId], references: [id])
+
+  @@index([caseId])
+  @@map("firs")
 }
 
 model IngestionJob {
