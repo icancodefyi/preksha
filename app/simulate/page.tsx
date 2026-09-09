@@ -7,6 +7,15 @@ import type { SimData } from "@/lib/graph/simulation";
 
 const SPEEDS = [0.5, 1, 2];
 
+const NARRATION_AUDIO: Record<string, string> = {
+  premed: "/audio/narration/premed.mp3",
+  approach: "/audio/narration/approach.mp3",
+  offense: "/audio/narration/offense.mp3",
+  escape: "/audio/narration/escape.mp3",
+  money: "/audio/narration/money.mp3",
+  close: "/audio/narration/close.mp3",
+};
+
 export default function SimulatePage() {
   const [data, setData] = useState<SimData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -95,34 +104,30 @@ export default function SimulatePage() {
     setSpeed(SPEEDS[(i + 1) % SPEEDS.length]);
   };
 
-  // --- suspense voice-over
+  // --- suspense narration (real voice via audio files)
   const [voiceOn, setVoiceOn] = useState(true);
+  const [narrationMissing, setNarrationMissing] = useState(false);
   const spokenRef = useRef<string | null>(null);
-  const NARRATION: Record<string, string> = {
-    premed: "November twelfth. Twenty twenty-three. Dadar, Mumbai. In the records... a plan begins to form.",
-    approach:
-      "Three phones move closer. Mohammed. Ravi. Santosh. And one more — a second SIM. Unknown. Untraceable.",
-    offense: "Eight o'clock. They're inside. The phones ping the tower. It's happening... now.",
-    escape: "In sixty seconds, it is over. But the network leaves a trail.",
-    money: "Six lakh twenty thousand rupees. Routed through a shell company. And another. And another.",
-    close: "Every step, recorded. Every rupee, traced. This... is Preksha.",
-  };
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
     if (!voiceOn || !activePhase || !playing) return;
     if (spokenRef.current === activePhase.key) return;
     spokenRef.current = activePhase.key;
-    const line = NARRATION[activePhase.key];
-    if (!line || typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(line);
-    u.rate = 0.92;
-    u.pitch = 0.72;
-    const voices = window.speechSynthesis.getVoices();
-    const v = voices.find((x) => /en(-|_)GB/i.test(x.lang)) ?? voices.find((x) => /en/i.test(x.lang));
-    if (v) u.voice = v;
-    window.speechSynthesis.speak(u);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const src = NARRATION_AUDIO[activePhase.key];
+    if (!src) return;
+    audioRef.current?.pause();
+    const a = new Audio(src);
+    audioRef.current = a;
+    a.onerror = () => setNarrationMissing(true);
+    a.volume = 1;
+    a.play().catch(() => {});
   }, [voiceOn, activePhase, playing]);
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+    };
+  }, []);
 
   // --- fade to black around the interior cut
   const fade = useMemo(() => {
@@ -297,14 +302,19 @@ export default function SimulatePage() {
                   ? "border-white/30 bg-white/10 text-white"
                   : "border-white/15 text-neutral-400 hover:border-white/40"
               }`}
-              title="Toggle voice-over"
+              title="Toggle narration"
             >
-              {voiceOn ? "Voice on" : "Voice off"}
+              {voiceOn ? "Narration on" : "Narration off"}
             </button>
             <div className="ml-auto font-mono text-sm tabular-nums text-neutral-400">
               {time.toFixed(1)}s / {data?.duration ?? 0}s
             </div>
           </div>
+          {narrationMissing && (
+            <p className="mt-2 text-[11px] text-amber-300/80">
+              Narration audio not found — add tracks to <span className="font-mono">public/audio/narration/</span>.
+            </p>
+          )}
 
           {/* phase ribbon + scrubber */}
           <div className="relative">

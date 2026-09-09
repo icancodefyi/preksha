@@ -284,8 +284,8 @@ export function buildSimulation(firIdx: number): SimData | null {
   const phases: SimPhase[] = [
     { key: "premed", label: "Premeditation", start: 0, end: 16, color: "#8b8b9e" },
     { key: "approach", label: "Approach", start: 16, end: 54, color: "#fbbf24" },
-    { key: "offense", label: "The Offense", start: 54, end: 60, color: "#f43f5e" },
-    { key: "escape", label: "Escape", start: 60, end: 84, color: "#22d3ee" },
+    { key: "offense", label: "The Offense", start: 54, end: 62, color: "#f43f5e" },
+    { key: "escape", label: "Escape", start: 62, end: 84, color: "#22d3ee" },
     { key: "money", label: "Money Trail", start: 84, end: 116, color: "#34d399" },
     { key: "close", label: "Case Closed", start: 116, end: TOTAL, color: "#8b8b9e" },
   ];
