@@ -271,7 +271,7 @@ function computeMetrics(
   }
 
   // label propagation communities
-  let label = new Map<string, number>();
+  const label = new Map<string, number>();
   ids.forEach((id, i) => label.set(id, i));
   for (let iter = 0; iter < 30; iter++) {
     let changed = false;

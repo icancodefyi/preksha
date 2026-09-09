@@ -1,4 +1,4 @@
-import { firByNumber, firs } from "@/lib/data/seed";
+import { firs } from "@/lib/data/seed";
 
 export async function GET() {
   return Response.json(

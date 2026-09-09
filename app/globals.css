@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
 
 @font-face {
   font-family: "Alliance No.1";
@@ -851,3 +854,143 @@ body {
   pointer-events: none;
   white-space: nowrap;
 }
+/* ===========================================================================
+ * Workspace / chat design system — ported from the vcet-hackathon app.
+ *
+ * Shadcn-style surface tokens power the shared ui/ primitives (button, card,
+ * tooltip, table). The .dark block below keeps the coarser neutral-* classes
+ * the Ask page is written in dark-mode aware the same way the vcet app does
+ * it: remap the light end of the neutral ramp, leave 700-950 alone so on-page
+ * dark elements (user bubble, dark monogram) stay dark in both themes.
+ * =========================================================================== */
+:root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+    --radius: 0.625rem;
+}
+
+.dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+}
+
+@theme inline {
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+/* ---- dark mode: remap the light surface/text ramp, keep dark on dark ---- */
+.dark {
+  --df-canvas: #0a0a0a;
+  --df-panel:  #101113;
+  --df-fill-1: #16181b;
+  --df-fill-2: #1d2024;
+  --df-fill-3: #262a30;
+  --df-fill-4: #33383f;
+
+  --df-ink-0: #f5f5f5;
+  --df-ink-1: #eceef0;
+  --df-ink-2: #d7dade;
+  --df-ink-3: #c3c7cd;
+  --df-ink-4: #a9aeb6;
+  --df-ink-5: #90959e;
+  --df-ink-6: #767c86;
+  --df-ink-7: #5b616b;
+}
+
+.dark .bg-white            { background-color: var(--df-canvas) !important; }
+.dark .bg-white\/70        { background-color: rgba(10,10,10,.70) !important; }
+.dark .bg-white\/80        { background-color: rgba(10,10,10,.80) !important; }
+.dark .bg-white\/85        { background-color: rgba(10,10,10,.85) !important; }
+.dark .bg-white\/90        { background-color: rgba(10,10,10,.90) !important; }
+.dark .bg-white\/95        { background-color: rgba(10,10,10,.95) !important; }
+.dark .hover\:bg-white:hover { background-color: var(--df-canvas) !important; }
+
+.dark .bg-neutral-50       { background-color: var(--df-panel) !important; }
+.dark .bg-neutral-50\/50   { background-color: rgba(16,17,19,.50) !important; }
+.dark .bg-neutral-50\/70   { background-color: rgba(16,17,19,.70) !important; }
+.dark .hover\:bg-neutral-50:hover     { background-color: var(--df-panel) !important; }
+.dark .hover\:bg-neutral-50\/50:hover { background-color: rgba(16,17,19,.50) !important; }
+
+.dark .bg-neutral-100       { background-color: var(--df-fill-1) !important; }
+.dark .hover\:bg-neutral-100:hover { background-color: var(--df-fill-1) !important; }
+.dark .bg-neutral-200       { background-color: var(--df-fill-2) !important; }
+.dark .bg-neutral-300       { background-color: var(--df-fill-3) !important; }
+.dark .bg-neutral-400       { background-color: var(--df-fill-4) !important; }
+
+.dark .text-black          { color: var(--df-ink-0) !important; }
+.dark .text-black\/80      { color: rgba(245,245,245,.80) !important; }
+.dark .text-black\/90      { color: rgba(245,245,245,.90) !important; }
+.dark .hover\:text-black:hover { color: var(--df-ink-0) !important; }
+.dark .text-neutral-950    { color: var(--df-ink-0) !important; }
+.dark .hover\:text-neutral-950:hover { color: var(--df-ink-0) !important; }
+.dark .text-neutral-900    { color: var(--df-ink-1) !important; }
+.dark .hover\:text-neutral-900:hover { color: var(--df-ink-1) !important; }
+.dark .text-neutral-800    { color: var(--df-ink-2) !important; }
+.dark .text-neutral-700    { color: var(--df-ink-3) !important; }
+.dark .hover\:text-neutral-700:hover { color: var(--df-ink-3) !important; }
+.dark .text-neutral-600    { color: var(--df-ink-4) !important; }
+.dark .hover\:text-neutral-600:hover { color: var(--df-ink-4) !important; }
+.dark .group:hover .group-hover\:text-neutral-600 { color: var(--df-ink-4) !important; }
+.dark .text-neutral-500    { color: var(--df-ink-5) !important; }
+.dark .hover\:text-neutral-500:hover { color: var(--df-ink-5) !important; }
+.dark .group:hover .group-hover\:text-neutral-500 { color: var(--df-ink-5) !important; }
+.dark .text-neutral-400    { color: var(--df-ink-6) !important; }
+.dark .placeholder\:text-neutral-400::placeholder { color: var(--df-ink-6) !important; }
+.dark .text-neutral-300    { color: var(--df-ink-7) !important; }
+.dark .hover\:text-neutral-300:hover { color: var(--df-ink-7) !important; }
+
+.dark .border-neutral-100      { border-color: rgba(255,255,255,.07) !important; }
+.dark .border-neutral-100\/50   { border-color: rgba(255,255,255,.035) !important; }
+.dark .border-neutral-200      { border-color: rgba(255,255,255,.10) !important; }
+.dark .border-neutral-200\/50   { border-color: rgba(255,255,255,.05) !important; }
+.dark .border-neutral-200\/60   { border-color: rgba(255,255,255,.06) !important; }
+.dark .border-neutral-200\/70   { border-color: rgba(255,255,255,.07) !important; }
+.dark .border-neutral-200\/80   { border-color: rgba(255,255,255,.08) !important; }
+.dark .border-neutral-300      { border-color: rgba(255,255,255,.16) !important; }
+.dark .border-neutral-400      { border-color: rgba(255,255,255,.22) !important; }
+
+/* ---- helper classes used by the Ask page ---- */
+@keyframes shimmer {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+.shimmer { animation: shimmer 1.6s ease-in-out infinite; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

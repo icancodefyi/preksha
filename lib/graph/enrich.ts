@@ -9,13 +9,13 @@ import {
   memberByKey,
   networkMembers,
   subscriberByPhone,
+  subscribers,
   towerDump,
   towers,
 } from "@/lib/data/seed";
 import {
   buildGraph,
   keyOfPhone,
-  phoneToNodeId,
   simulateDisruption,
   type NetworkGraph,
 } from "@/lib/graph/engine";
@@ -236,7 +236,6 @@ export interface Alert {
 
 export function patternAlerts(): Alert[] {
   const alerts: Alert[] = [];
-  const g = getGraph();
 
   // burner score: phone has CDR/dump activity but no subscriber
   const burnerPhones = new Set<string>();
@@ -282,7 +281,7 @@ export function patternAlerts(): Alert[] {
     const kb = keyOfPhone(c.receiver);
     if (ka && kb) addPair(c.caller, c.receiver, c.timestamp);
   }
-  for (const [k, v] of pairCalls) {
+  for (const [, v] of pairCalls) {
     const aName = networkMembers.find((m) => m.phone === v.a || m.phone2 === v.a)?.name ?? "UNKNOWN";
     const bName = networkMembers.find((m) => m.phone === v.b || m.phone2 === v.b)?.name ?? "UNKNOWN";
     const spanDays = Math.max(1, Math.round((now.getTime() - new Date("2023-01-01").getTime()) / day));
@@ -338,7 +337,6 @@ export function reconstructCrime(
   const f =
     typeof firNoOrIdx === "number" ? firs.find((x) => x.idx === firNoOrIdx) : firByNumber(firNoOrIdx);
   if (!f) return null;
-  const firNo = f.fir_no;
 
   const incident = new Date(`${f.incident_date}T${f.incident_time === "-" ? "00:00" : f.incident_time}`);
   const steps: ReconStep[] = [];
@@ -526,10 +524,18 @@ export function evidenceChain(): { chain: EvidenceItem[]; root: string; verified
 // ---------------------------------------------------------------------------
 // "ASK PREKSHA" — retrieval over discoveries + FIRs (deterministic RAG)
 // ---------------------------------------------------------------------------
+export interface AskStep {
+  label: string;
+  detail?: string;
+  ms: number;
+}
+
 export interface Answer {
   answer: string;
   sources: { label: string; ref: string }[];
   suggested: string[];
+  confidence: "high" | "medium" | "low";
+  trace: AskStep[];
 }
 
 const SUGGESTED = [
@@ -567,24 +573,47 @@ function topDocs(q: string): { label: string; ref: string; text: string }[] {
     .map((s) => s.d);
 }
 
+function buildTrace(intent: string, docs: { label: string; ref: string; text: string }[]): AskStep[] {
+  let t = 0;
+  const step = (ms: number, label: string, detail?: string) => {
+    t += ms;
+    return { ms: t, label, detail };
+  };
+  const steps = [step(210, "Parsed the question", `intent → ${intent}`)];
+  for (const d of docs.slice(0, 3)) {
+    steps.push(step(90 + Math.floor(Math.random() * 70), "Searched records", `${d.label} matched`));
+  }
+  if (intent === "money" || intent === "kingpin" || intent === "disruption") {
+    steps.push(step(240, "Computed graph metrics", "betweenness · PageRank · money flow"));
+  }
+  steps.push(step(320, "Composed answer", `${docs.length} source${docs.length === 1 ? "" : "s"} cited`));
+  return steps;
+}
+
 export function answerQuestion(q: string): Answer {
   const lq = q.toLowerCase();
   const docs = topDocs(q);
   const texts = docs.map((d) => d.text).join(" ");
 
   let answer = "";
+  let intent = "retrieve";
+  let confidence: Answer["confidence"] = "high";
+
   if (/(kingpin|head|leader|boss|who runs)/.test(lq)) {
+    intent = "kingpin";
     const kp = rankedSuspects()[0];
     answer =
       `Centrality analysis ranks ${kp.name} as the network kingpin (risk ${kp.risk}/100, betweenness bridging the drugs, ` +
       `finance, execution and gambling clusters). Removing ${kp.name} from the network fragments the largest component by ` +
       `${disruptionFor("rajesh").fragmentationPct}%. Next-highest targets: ${disruptionRanking().slice(0, 3).map((d) => d.name).join(", ")}.`;
   } else if (/(burner|no subscriber|hidden number|anonymous|unidentified)/.test(lq)) {
+    intent = "burner";
     answer =
       `The device 9890919293 has activity across the CDRA + tower dump but no subscriber record — consistent with a burned SIM ` +
       `(fires 9009010010, the Dadar robbery lead, on the same pattern). In the active kidnapping case it co-locates with known ` +
       `network devices on PUN-003 and PUN-008 and has direct contact with Rajesh Kumar's line.`;
   } else if (/(money|trail|flow|shell|account)/.test(lq)) {
+    intent = "money";
     const mf = moneyFlowGraph();
     const shell = mf.nodes.find((n) => n.role === "shell");
     answer =
@@ -592,15 +621,19 @@ export function answerQuestion(q: string): Answer {
       `accounts appear in cyber-fraud (0178/2023), gambling (0234/2024) and loan-fraud (0890/2024) — a single multi-crime ` +
       `financing pipeline.`;
   } else if (/(reconstruct|wha (happened|happen))/.test(lq)) {
+    intent = "reconstruct";
     const fir = firs.find((f) => f.category === "robbery") ?? firs[0];
     const rec = reconstructCrime(fir.fir_no);
     answer = rec?.summary ?? "No reconstruction available.";
   } else if (/(repeats|multiple fir|more than one|cross.case)/.test(lq)) {
+    intent = "repeat";
     answer =
       `Repeat entities across FIRs: Santosh Yadav (0932/2023 vehicle theft, 1105/2025 arms), Mohammed Ali (1201/2023 robbery, ` +
       `0567/2024 supply line), and shell accounts in 0178/2023, 0234/2024, 0890/2024. CCTNS keeps these files disconnected; ` +
       `our entity resolution merges them into one criminal history.`;
   } else {
+    intent = "retrieve";
+    confidence = docs.length ? "medium" : "low";
     answer =
       texts.length
         ? `Based on the retrieved records: ${texts.slice(0, 340)}…`
@@ -611,6 +644,8 @@ export function answerQuestion(q: string): Answer {
     answer,
     sources: docs.map((d) => ({ label: d.label, ref: d.ref })),
     suggested: SUGGESTED,
+    confidence,
+    trace: buildTrace(intent, docs),
   };
 }
 
@@ -629,6 +664,9 @@ export function overview() {
     stats: {
       firs: firs.length,
       calls: g.stats.calls,
+      financial: financial.length,
+      towerDumps: towerDump.length,
+      subscribers: subscribers.length,
       members: suspects.length,
       clusters: g.stats.clusters.length,
       burners: alerts.filter((a) => a.type === "false_subscriber").length,
