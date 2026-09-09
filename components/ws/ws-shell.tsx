@@ -12,6 +12,7 @@ import {
   Scale,
   Users,
   ShieldCheck,
+  Clapperboard,
   ArrowUpRight,
   Menu,
   X,
@@ -22,6 +23,7 @@ export const WS_NAV = [
   { href: "/ask", label: "Ask Preksha", icon: MessagesSquare },
   { href: "/network", label: "Network", icon: Share2 },
   { href: "/cases", label: "Cases", icon: Scale },
+  { href: "/simulate", label: "Replay", icon: Clapperboard },
   { href: "/suspects", label: "Suspects", icon: Users },
   { href: "/evidence", label: "Evidence", icon: ShieldCheck },
 ];

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { WsShell } from "@/components/ws/ws-shell";
 import { cn } from "@/lib/utils";
-import { Loader2, Scale, AlertCircle } from "lucide-react";
+import { Loader2, Scale, AlertCircle, Play } from "lucide-react";
 
 interface FirLite {
   idx: number;
@@ -127,6 +128,14 @@ export default function CasesPage() {
                     <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-neutral-400">
                       {selected.category}
                     </span>
+                    {selected.idx === 4 && (
+                      <Link
+                        href="/simulate?fir=4"
+                        className="ml-1 inline-flex items-center gap-1.5 rounded-full bg-neutral-950 px-3 py-1 text-[11px] font-semibold text-white transition hover:bg-neutral-800"
+                      >
+                        <Play className="size-3" /> Replay in 3D
+                      </Link>
+                    )}
                   </div>
                   <h2 className="mt-3 text-[22px] font-medium leading-tight tracking-[-0.02em] text-neutral-950">
                     {selected.title}

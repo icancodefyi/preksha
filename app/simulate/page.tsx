@@ -1,0 +1,309 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import SimScene, { type SimController } from "@/components/sim/SimScene";
+import type { SimData } from "@/lib/graph/simulation";
+
+const SPEEDS = [0.5, 1, 2];
+
+export default function SimulatePage() {
+  const [data, setData] = useState<SimData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [firIdx] = useState<number>(() => {
+    if (typeof window === "undefined") return 4;
+    const sp = new URLSearchParams(window.location.search);
+    const f = sp.get("fir");
+    return f && Number.isFinite(Number(f)) ? Number(f) : 4;
+  });
+  const [playing, setPlaying] = useState(true);
+  const [speed, setSpeed] = useState(1);
+  const [time, setTime] = useState(0);
+  const controller = useRef<SimController>({ t: 0, playing: true, speed: 1 });
+  const emitRef = useRef(0);
+
+  useEffect(() => {
+    let alive = true;
+    controller.current.t = 0;
+    fetch(`/api/simulation?fir=${firIdx}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("no simulation"))))
+      .then((d: SimData) => {
+        if (!alive) return;
+        setError(null);
+        setData(d);
+        setTime(0);
+        emitRef.current = 0;
+        controller.current.t = 0;
+      })
+      .catch(() => alive && setError("No replay available for that case."));
+    return () => {
+      alive = false;
+    };
+  }, [firIdx]);
+
+  useEffect(() => {
+    controller.current.playing = playing;
+  }, [playing]);
+  useEffect(() => {
+    controller.current.speed = speed;
+  }, [speed]);
+
+  const onTime = (t: number) => {
+    if (t - emitRef.current > 0.1 || t < emitRef.current) {
+      emitRef.current = t;
+      setTime(t);
+    }
+  };
+  const onFire = () => {};
+
+  const feed = useMemo(() => {
+    if (!data) return [];
+    return data.events.filter((e) => !e.ambient && e.t <= time);
+  }, [data, time]);
+
+  const activePhase = useMemo(() => {
+    if (!data) return null;
+    return data.phases.find((p) => time >= p.start && time < p.end) ?? null;
+  }, [data, time]);
+
+  const feedRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight });
+  }, [feed.length]);
+
+  const seek = (v: number) => {
+    controller.current.t = v;
+    emitRef.current = v;
+    setTime(v);
+  };
+
+  const restart = () => {
+    seek(0);
+    setPlaying(true);
+  };
+
+  const toggleSpeed = () => {
+    const i = SPEEDS.indexOf(speed);
+    setSpeed(SPEEDS[(i + 1) % SPEEDS.length]);
+  };
+
+  return (
+    <div className="fixed inset-0 overflow-hidden bg-[#05060b] text-neutral-100">
+      {data ? (
+        <SimScene data={data} controller={controller} onTime={onTime} onFire={onFire} />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center">
+            {error ? (
+              <>
+                <div className="text-sm text-neutral-400">{error}</div>
+                <Link href="/cases" className="mt-3 inline-block text-sm text-white underline">
+                  Back to cases
+                </Link>
+              </>
+            ) : (
+              <div className="text-sm text-neutral-500">Building replay…</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* top bar */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between p-5">
+        <div className="pointer-events-auto">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/cases"
+              className="rounded-full border border-white/10 bg-black/50 px-3 py-1.5 text-xs text-neutral-300 backdrop-blur transition hover:border-white/30 hover:text-white"
+            >
+              ← Cases
+            </Link>
+            <div className="rounded-full border border-white/10 bg-black/50 px-3 py-1.5 text-xs tracking-wide text-neutral-300 backdrop-blur">
+              FIR {data?.firNo ?? "…"}
+            </div>
+          </div>
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight drop-shadow">
+            {data?.title ?? "Loading replay…"}
+          </h1>
+          {data && (
+            <p className="mt-1 max-w-md text-sm text-neutral-400">
+              {data.date} {data.time && `· ${data.time}`}
+            </p>
+          )}
+        </div>
+
+        {data && activePhase && (
+          <div className="pointer-events-auto rounded-2xl border border-white/10 bg-black/50 px-4 py-3 text-right backdrop-blur">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">Phase</div>
+            <div className="text-base font-semibold" style={{ color: activePhase.color }}>
+              {activePhase.label}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* legend */}
+      {data && (
+        <div className="pointer-events-none absolute bottom-32 right-5 z-20 hidden w-60 md:block">
+          <div className="pointer-events-auto rounded-2xl border border-white/10 bg-black/50 p-3 backdrop-blur">
+            <div className="mb-2 text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+              Persons of interest
+            </div>
+            <div className="space-y-1.5">
+              {data.actors.map((a) => (
+                <div key={a.id} className="flex items-center gap-2 text-xs text-neutral-300">
+                  <span
+                    className="inline-block h-2.5 w-2.5 rounded-full"
+                    style={{ background: a.color, boxShadow: `0 0 8px ${a.color}` }}
+                  />
+                  <span className="truncate">{a.name}</span>
+                  <span className="ml-auto text-[10px] text-neutral-500">{a.role}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* evidence feed */}
+      {data && (
+        <div className="pointer-events-none absolute bottom-32 left-5 z-20 hidden w-80 md:block">
+          <div className="pointer-events-auto flex max-h-56 flex-col rounded-2xl border border-white/10 bg-black/55 backdrop-blur">
+            <div className="border-b border-white/10 px-4 py-2.5 text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+              Evidence feed
+            </div>
+            <div ref={feedRef} className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
+              {feed.length === 0 && (
+                <div className="px-1 py-2 text-xs text-neutral-600">Awaiting events…</div>
+              )}
+              {feed.map((e, i) => {
+                const active = time >= e.t && time <= e.t + e.dur;
+                return (
+                  <div
+                    key={i}
+                    className={`rounded-lg px-2.5 py-1.5 text-xs transition ${
+                      active ? "bg-white/10 text-white" : "text-neutral-400"
+                    }`}
+                  >
+                    <span className="font-mono text-[10px] text-neutral-500">
+                      {e.t.toFixed(0)}s
+                    </span>{" "}
+                    {e.label}
+                    {e.sub && <span className="text-neutral-500"> · {e.sub}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* bottom controls */}
+      <div className="absolute inset-x-0 bottom-0 z-20 p-5">
+        <div className="mx-auto max-w-4xl rounded-2xl border border-white/10 bg-black/55 p-4 backdrop-blur">
+          <div className="mb-3 flex items-center gap-3">
+            <button
+              onClick={() => setPlaying((p) => !p)}
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-black transition hover:scale-105"
+              aria-label={playing ? "Pause" : "Play"}
+            >
+              {playing ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="5" width="4" height="14" rx="1" />
+                  <rect x="14" y="5" width="4" height="14" rx="1" />
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              )}
+            </button>
+            <button
+              onClick={restart}
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-neutral-200 transition hover:border-white/40"
+              aria-label="Restart"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+            </button>
+            <button
+              onClick={toggleSpeed}
+              className="h-11 rounded-full border border-white/15 px-4 text-sm font-medium text-neutral-200 transition hover:border-white/40"
+            >
+              {speed}×
+            </button>
+            <div className="ml-2 font-mono text-sm tabular-nums text-neutral-400">
+              {time.toFixed(1)}s / {data?.duration ?? 0}s
+            </div>
+          </div>
+
+          {/* phase ribbon + scrubber */}
+          <div className="relative">
+            <div className="mb-1 flex h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+              {data?.phases.map((p) => (
+                <div
+                  key={p.key}
+                  className="h-full"
+                  style={{
+                    width: `${((p.end - p.start) / (data?.duration ?? 1)) * 100}%`,
+                    background: p.color,
+                    opacity: activePhase?.key === p.key ? 1 : 0.4,
+                  }}
+                />
+              ))}
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={data?.duration ?? 1}
+              step={0.05}
+              value={time}
+              onChange={(e) => seek(Number(e.target.value))}
+              className="timeline-range w-full"
+            />
+            <div className="mt-0.5 flex justify-between text-[10px] uppercase tracking-wider text-neutral-500">
+              {data?.phases.map((p) => (
+                <span key={p.key} style={{ color: activePhase?.key === p.key ? p.color : undefined }}>
+                  {p.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style jsx>{`
+        .timeline-range {
+          -webkit-appearance: none;
+          appearance: none;
+          height: 4px;
+          border-radius: 999px;
+          background: transparent;
+          cursor: pointer;
+        }
+        .timeline-range::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: #fff;
+          border: none;
+          box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
+          cursor: pointer;
+        }
+        .timeline-range::-moz-range-thumb {
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: #fff;
+          border: none;
+          box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
+          cursor: pointer;
+        }
+      `}</style>
+    </div>
+  );
+}
