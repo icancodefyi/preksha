@@ -7,14 +7,26 @@ import type { SimData } from "@/lib/graph/simulation";
 
 const SPEEDS = [0.5, 1, 2];
 
-const NARRATION_AUDIO: Record<string, string> = {
-  premed: "/audio/narration/premed.mp3",
-  approach: "/audio/narration/approach.mp3",
-  offense: "/audio/narration/offense.mp3",
-  escape: "/audio/narration/escape.mp3",
-  money: "/audio/narration/money.mp3",
-  close: "/audio/narration/close.mp3",
-};
+// continuous narration timeline — each segment plays as the replay reaches its start time
+const NARRATION_SEGMENTS: { t: number; key: string }[] = [
+  { t: 1, key: "n01" },
+  { t: 10, key: "n02" },
+  { t: 19, key: "n03" },
+  { t: 30, key: "n04" },
+  { t: 40, key: "n05" },
+  { t: 50, key: "n06" },
+  { t: 56, key: "n07" },
+  { t: 64, key: "n08" },
+  { t: 73, key: "n09" },
+  { t: 83, key: "n10" },
+  { t: 93, key: "n11" },
+  { t: 104, key: "n12" },
+  { t: 115, key: "n13" },
+];
+
+const NARRATION_AUDIO: Record<string, string> = Object.fromEntries(
+  NARRATION_SEGMENTS.map((s) => [s.key, `/audio/narration/${s.key}.mp3`]),
+);
 
 export default function SimulatePage() {
   const [data, setData] = useState<SimData | null>(null);
@@ -94,7 +106,7 @@ export default function SimulatePage() {
   };
 
   const restart = () => {
-    spokenRef.current = null;
+    lastPlayedRef.current = null;
     seek(0);
     setPlaying(true);
   };
@@ -104,16 +116,18 @@ export default function SimulatePage() {
     setSpeed(SPEEDS[(i + 1) % SPEEDS.length]);
   };
 
-  // --- suspense narration (real voice via audio files)
+  // --- suspense narration (real voice via audio files, continuous)
   const [voiceOn, setVoiceOn] = useState(true);
   const [narrationMissing, setNarrationMissing] = useState(false);
-  const spokenRef = useRef<string | null>(null);
+  const lastPlayedRef = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
-    if (!voiceOn || !activePhase || !playing) return;
-    if (spokenRef.current === activePhase.key) return;
-    spokenRef.current = activePhase.key;
-    const src = NARRATION_AUDIO[activePhase.key];
+    if (!voiceOn || !playing) return;
+    let seg = NARRATION_SEGMENTS[0];
+    for (const s of NARRATION_SEGMENTS) if (time >= s.t) seg = s;
+    if (lastPlayedRef.current === seg.key) return;
+    lastPlayedRef.current = seg.key;
+    const src = NARRATION_AUDIO[seg.key];
     if (!src) return;
     audioRef.current?.pause();
     const a = new Audio(src);
@@ -121,7 +135,7 @@ export default function SimulatePage() {
     a.onerror = () => setNarrationMissing(true);
     a.volume = 1;
     a.play().catch(() => {});
-  }, [voiceOn, activePhase, playing]);
+  }, [time, voiceOn, playing]);
 
   useEffect(() => {
     return () => {
