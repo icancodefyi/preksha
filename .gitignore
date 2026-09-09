@@ -47,3 +47,6 @@ prisma/*.db-journal
 # local object storage (Phase 4/ADR-03 — raw uploaded evidence artifacts)
 /storage
 
+
+# local Qdrant binary + storage (downloaded, not committed)
+/.qdrant
