@@ -6,6 +6,12 @@ import { WsShell } from "@/components/ws/ws-shell";
 import { cn } from "@/lib/utils";
 import { Loader2, Scale, AlertCircle, Play } from "lucide-react";
 
+interface Accused {
+  name: string | null;
+  alias: string;
+  description: string;
+  status: string;
+}
 interface FirLite {
   idx: number;
   fir_no: string;
@@ -15,8 +21,12 @@ interface FirLite {
   title: string;
   category: string;
   sections: string[];
-  related_firs: string[];
-  accused: string[];
+  related_firs: number[];
+  // API (app/api/firs/route.ts) returns the full accused object array, not
+  // strings — rendering it directly as {a} previously crashed the page
+  // ("Objects are not valid as a React child") for every FIR with an
+  // accused entry.
+  accused: Accused[];
 }
 interface ReconStep {
   phase: string;
@@ -149,26 +159,44 @@ export default function CasesPage() {
               {selected.related_firs.length > 0 && (
                 <div className="mt-4 flex flex-wrap items-center gap-1.5">
                   <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
-                    Linked cases
+                    Linked cases <span className="normal-case text-neutral-300">· click to open</span>
                   </span>
-                  {selected.related_firs.map((r) => (
-                    <span key={r} className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-600">
-                      {r}
-                    </span>
-                  ))}
+                  {selected.related_firs.map((r) => {
+                    const target = firs.find((f) => f.idx === r);
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        disabled={!target}
+                        onClick={() => target && openCase(target)}
+                        className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-600 transition-colors enabled:hover:border-neutral-950 enabled:hover:text-neutral-950 disabled:opacity-50"
+                        title={target ? `FIR ${target.fir_no} — ${target.title}` : "Not loaded"}
+                      >
+                        {target ? `FIR ${target.fir_no}` : `#${r}`}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 
               {selected.accused.length > 0 && (
                 <div className="mt-4 flex flex-wrap items-center gap-1.5">
                   <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
-                    Accused
+                    Accused <span className="normal-case text-neutral-300">· click to search suspects</span>
                   </span>
-                  {selected.accused.map((a) => (
-                    <span key={a} className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-600">
-                      {a}
-                    </span>
-                  ))}
+                  {selected.accused.map((a, i) => {
+                    const label = a.name ?? a.alias;
+                    return (
+                      <Link
+                        key={i}
+                        href={`/suspects?focus=${encodeURIComponent(a.name ?? a.alias)}`}
+                        className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-600 transition-colors hover:border-neutral-950 hover:text-neutral-950"
+                        title={a.description}
+                      >
+                        {label}
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
 

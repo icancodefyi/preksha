@@ -5,11 +5,11 @@
 import { randomUUID } from "node:crypto";
 import { qdrant, COLLECTION } from "@/lib/rag/qdrantClient";
 import { embedPassages, EMBEDDING_DIM } from "@/lib/rag/jina";
-import { firs, discoveries, networkMembers } from "@/lib/data/seed";
+import { firs, discoveries, networkMembers, towerDump, towerById, memberByPhone, subscriberByPhone } from "@/lib/data/seed";
 import { dossier, patternAlerts, moneyFlowGraph } from "@/lib/graph/enrich";
 
 interface Doc {
-  sourceType: "fir" | "discovery" | "suspect_profile" | "pattern_alert" | "money_flow";
+  sourceType: "fir" | "discovery" | "suspect_profile" | "pattern_alert" | "money_flow" | "tower_colocation";
   sourceId: string;
   label: string;
   text: string;
@@ -78,6 +78,40 @@ function buildCorpus(): Doc[] {
     // citation token (lib/rag/localAnswer.ts), which excludes whitespace.
     docs.push({ sourceType: "pattern_alert", sourceId: `alert_${a.type}_${i}`, label: `Alert: ${a.title}`, text });
   });
+
+  // Tower dump: 150 raw pings across only 2 cells for one event
+  // ("dadar_jewelry_robbery") — grouped into one co-location summary per
+  // tower rather than 150 near-identical rows, cross-referencing each phone
+  // against known network members vs. no-subscriber-record (burner) status,
+  // which is the actual investigative signal, not the raw ping itself.
+  const byCell = new Map<string, typeof towerDump>();
+  for (const d of towerDump) {
+    const list = byCell.get(d.cell_id) ?? [];
+    list.push(d);
+    byCell.set(d.cell_id, list);
+  }
+  for (const [cellId, rows] of byCell) {
+    const tower = towerById(cellId);
+    const distinctPhones = [...new Set(rows.map((r) => r.phone))];
+    const identified = distinctPhones
+      .map((p) => ({ p, m: memberByPhone(p), known: !!subscriberByPhone(p) }))
+      .filter((x) => x.m || x.known);
+    const unidentified = distinctPhones.filter((p) => !memberByPhone(p) && !subscriberByPhone(p));
+    const times = rows.map((r) => r.timestamp).sort();
+    const text = [
+      `Tower ${cellId}${tower ? ` (${tower.landmark}, ${tower.city})` : ""} — ${rows.length} device pings, ${distinctPhones.length} distinct phones, ${times[0]} to ${times[times.length - 1]}.`,
+      `Event tag: ${rows[0].event ?? "none"}.`,
+      identified.length
+        ? `Identified network members present: ${identified.map((x) => x.m?.name ?? x.p).join(", ")}.`
+        : "",
+      unidentified.length
+        ? `Unidentified devices with no subscriber record (possible burner SIMs): ${unidentified.join(", ")}.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+    docs.push({ sourceType: "tower_colocation", sourceId: `tower_${cellId}`, label: `Co-location: ${cellId}`, text });
+  }
 
   const mf = moneyFlowGraph();
   const topFlows = mf.edges.slice(0, 15);

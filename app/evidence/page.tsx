@@ -1,9 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { WsShell } from "@/components/ws/ws-shell";
 import { cn } from "@/lib/utils";
-import { Loader2, ShieldCheck, ShieldAlert, FileText, Fingerprint, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Loader2, ShieldCheck, ShieldAlert, FileText, Fingerprint, CheckCircle2, AlertTriangle, ArrowUpRight } from "lucide-react";
+
+// Chain item ids are either an FIR number ("0178/2023") or a dataset-category
+// rollup ("CDR" | "FIN" | "DUMP") — lib/graph/enrich.ts evidenceChain().
+function askQuestionFor(id: string): string {
+  if (/^\d{2,4}\/\d{4}$/.test(id)) return `Summarize FIR ${id}`;
+  if (id === "CDR") return "Summarize the CDR call analysis";
+  if (id === "FIN") return "Summarize the financial records and money flow";
+  if (id === "DUMP") return "Summarize the tower dump findings";
+  return `Tell me about ${id}`;
+}
 
 interface EvidenceItem {
   id: string;
@@ -126,7 +137,11 @@ export default function EvidencePage() {
             <div className="space-y-0">
               {chain.chain.map((item, i) => (
                 <div key={item.id}>
-                  <div className="flex items-center gap-4 py-3">
+                  <Link
+                    href={`/ask?q=${encodeURIComponent(askQuestionFor(item.id))}`}
+                    title="Ask about this artifact"
+                    className="group flex items-center gap-4 rounded-2xl py-3 pr-2 transition-colors hover:bg-neutral-50"
+                  >
                     <div
                       className={cn(
                         "flex size-9 shrink-0 items-center justify-center rounded-xl",
@@ -156,7 +171,8 @@ export default function EvidencePage() {
                     >
                       {item.verified ? "valid" : "tampered"}
                     </span>
-                  </div>
+                    <ArrowUpRight className="size-3.5 shrink-0 text-neutral-300 opacity-0 transition-opacity group-hover:opacity-100" />
+                  </Link>
                   {i < chain.chain.length - 1 && (
                     <div className="ml-[17px] h-px w-px border-l border-dashed border-neutral-200" />
                   )}

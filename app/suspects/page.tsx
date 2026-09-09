@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { WsShell } from "@/components/ws/ws-shell";
 import { cn } from "@/lib/utils";
-import { Loader2, ArrowUpRight, MapPin, Phone, Crown } from "lucide-react";
+import { Loader2, ArrowUpRight, MapPin, Phone, Crown, FileText } from "lucide-react";
 
 interface SuspectRow {
   key: string;
@@ -21,6 +22,7 @@ interface SuspectRow {
   isKingpin: boolean;
 }
 interface Dossier {
+  key: string;
   name: string;
   alias: string | null;
   role: string;
@@ -30,11 +32,14 @@ interface Dossier {
   risk: number;
   firCount: number;
   phone: string;
-  verification: string | null;
+  // API (lib/graph/enrich.ts dossier()) returns `verifiedAddress`, not
+  // `verification` — this field was previously never populated.
+  verifiedAddress: string | null;
   metrics: { degree: number; weightedDegree: number; betweenness: number; pagerank: number } | null;
   money: { inflow: number; outflow: number; txns: number };
-  topContacts: { name: string; calls: number }[];
+  topContacts: { key: string; name: string; calls: number }[];
   bankAccounts: { bank: string; acct: string }[];
+  firs: { fir_no: string; title: string; category: string; year: number }[];
 }
 
 const CLUSTER_COLOR: Record<string, string> = {
@@ -47,6 +52,8 @@ const CLUSTER_COLOR: Record<string, string> = {
 };
 
 export default function SuspectsPage() {
+  const searchParams = useSearchParams();
+  const focusedFromUrlRef = useRef(false);
   const [rows, setRows] = useState<SuspectRow[]>([]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [dossier, setDossier] = useState<Dossier | null>(null);
@@ -67,6 +74,22 @@ export default function SuspectsPage() {
       setLoading(false);
     }
   };
+
+  // Cross-page navigation target: /suspects?focus=<name> (from Cases'
+  // "Accused" chips, Dashboard's contact chips, etc.) — resolve the name to
+  // a row once the list has loaded, then open it like a normal click would.
+  useEffect(() => {
+    const focus = searchParams.get("focus");
+    if (!focus || rows.length === 0 || focusedFromUrlRef.current) return;
+    const match = rows.find((r) => r.name.toLowerCase() === focus.toLowerCase())
+      ?? rows.find((r) => r.name.toLowerCase().includes(focus.toLowerCase()));
+    focusedFromUrlRef.current = true;
+    if (!match) return;
+    // Deferred a tick: open() setState synchronously, and
+    // react-hooks/set-state-in-effect flags that even through a function
+    // call — queueMicrotask moves it out of the effect's own call stack.
+    queueMicrotask(() => open(match.key));
+  }, [rows, searchParams]);
 
   return (
     <WsShell title="Suspect rankings" sub="Risk fuses centrality, FIR involvement, burner linkage and money flow">
@@ -223,22 +246,52 @@ export default function SuspectsPage() {
                         <p className="font-mono text-[11px] tabular-nums text-neutral-500">{a.acct}</p>
                       </div>
                     ))}
-                    {(dossier.verification && dossier.verification !== "None") && (
+                    {(dossier.verifiedAddress && dossier.verifiedAddress !== "None") && (
                       <div className="rounded-2xl bg-neutral-50 px-3.5 py-2.5 text-[11px] text-neutral-500">
-                        {dossier.verification}
+                        {dossier.verifiedAddress}
                       </div>
                     )}
                   </div>
+
+                  {dossier.firs.length > 0 && (
+                    <>
+                      <p className="mb-2.5 mt-5 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
+                        Linked FIRs <span className="normal-case text-neutral-300">· click to reconstruct</span>
+                      </p>
+                      <div className="space-y-1.5">
+                        {dossier.firs.map((f) => (
+                          <Link
+                            key={f.fir_no}
+                            href="/cases"
+                            className="flex items-center gap-2 rounded-2xl border border-neutral-200/70 px-3.5 py-2.5 text-[11.5px] transition-colors hover:border-neutral-950"
+                          >
+                            <FileText className="size-3.5 shrink-0 text-neutral-400" />
+                            <span className="min-w-0 flex-1 truncate">
+                              <span className="font-medium text-neutral-800">{f.fir_no}</span>
+                              <span className="ml-1.5 text-neutral-400">{f.title}</span>
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div>
-                  <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Top contacts</p>
+                  <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
+                    Top contacts <span className="normal-case text-neutral-300">· click to open</span>
+                  </p>
                   <div className="space-y-1.5">
                     {dossier.topContacts.slice(0, 6).map((c, i) => (
-                      <div key={i} className="flex items-center justify-between rounded-2xl px-3.5 py-2 text-[12.5px]">
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => open(c.key)}
+                        className="flex w-full items-center justify-between rounded-2xl px-3.5 py-2 text-[12.5px] transition-colors hover:bg-neutral-50"
+                      >
                         <span className="font-medium text-neutral-800">{c.name}</span>
                         <span className="tabular-nums text-neutral-400">{c.calls} calls</span>
-                      </div>
+                      </button>
                     ))}
                     {dossier.topContacts.length === 0 && (
                       <p className="px-3.5 text-[12px] text-neutral-400">No confirmed contact pairs yet.</p>
@@ -249,14 +302,14 @@ export default function SuspectsPage() {
 
               <div className="mt-6 flex flex-wrap items-center gap-2 pt-4">
                 <Link
-                  href={`/network`}
+                  href={`/network?focus=${encodeURIComponent(dossier.key)}`}
                   className="inline-flex h-9 items-center gap-1.5 rounded-full bg-neutral-950 px-4 text-[12.5px] font-semibold text-white transition-colors hover:bg-neutral-800"
                 >
                   Locate in graph
                   <ArrowUpRight className="size-3.5" />
                 </Link>
                 <Link
-                  href="/ask"
+                  href={`/ask?q=${encodeURIComponent(`Tell me about ${dossier.name}`)}`}
                   className="inline-flex h-9 items-center gap-1.5 rounded-full border border-neutral-300 px-4 text-[12.5px] font-semibold text-neutral-800 transition-colors hover:border-neutral-950"
                 >
                   Ask about {dossier.name.split(" ")[0]}

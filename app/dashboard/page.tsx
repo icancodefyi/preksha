@@ -38,6 +38,7 @@ interface Overview {
 }
 
 interface DossierLite {
+  key: string;
   name: string;
   alias: string | null;
   role: string;
@@ -47,7 +48,7 @@ interface DossierLite {
   firCount: number;
   firs: { fir_no: string; title: string }[];
   metrics: { betweenness: number; pagerank: number; degree: number } | null;
-  topContacts: { name: string; calls: number }[];
+  topContacts: { key: string; name: string; calls: number }[];
   money: { inflow: number; outflow: number; txns: number };
 }
 
@@ -122,7 +123,7 @@ export default function DashboardPage() {
                     Network principal
                   </p>
                   <Link
-                    href="/suspects/rajesh"
+                    href={`/suspects?focus=${encodeURIComponent(kingpin?.name ?? "")}`}
                     className="group inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-3 py-1 text-[12px] font-medium text-neutral-600 transition-colors hover:border-neutral-400 hover:text-neutral-900"
                   >
                     Open dossier
@@ -187,13 +188,14 @@ export default function DashboardPage() {
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {kingpin.topContacts.slice(0, 5).map((c, i) => (
-                          <span
+                          <Link
                             key={i}
-                            className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-[12px] font-medium text-neutral-700"
+                            href={`/suspects?focus=${encodeURIComponent(c.name)}`}
+                            className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-[12px] font-medium text-neutral-700 transition-colors hover:border-neutral-950 hover:text-neutral-950"
                           >
                             {c.name}
                             <span className="ml-1.5 tabular-nums text-neutral-400">{c.calls} calls</span>
-                          </span>
+                          </Link>
                         ))}
                       </div>
                     </div>
@@ -216,7 +218,12 @@ export default function DashboardPage() {
                 </div>
                 <div className="space-y-1 px-3 py-3">
                   {(overview.topAlerts ?? []).map((a, i) => (
-                    <div key={i} className="flex gap-3 rounded-2xl px-2.5 py-2.5 hover:bg-neutral-50">
+                    <Link
+                      key={i}
+                      href={`/ask?q=${encodeURIComponent(a.title)}`}
+                      title="Ask about this alert"
+                      className="flex gap-3 rounded-2xl px-2.5 py-2.5 transition-colors hover:bg-neutral-50"
+                    >
                       <div className="mt-px flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-neutral-100 text-neutral-500">
                         {a.type === "false_subscriber" ? (
                           <Flame className="size-3.5" />
@@ -236,13 +243,16 @@ export default function DashboardPage() {
                           >
                             {a.severity}
                           </span>
+                          {a.evidence.length > 0 && (
+                            <span className="text-[10px] text-neutral-300">{a.evidence.length} evidence item{a.evidence.length === 1 ? "" : "s"}</span>
+                          )}
                         </div>
                         <p className="mt-1 truncate text-[13px] font-medium tracking-[-0.01em] text-neutral-900">
                           {a.title}
                         </p>
                         <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-[1.5] text-neutral-500">{a.detail}</p>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>

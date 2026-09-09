@@ -77,7 +77,26 @@ export async function semanticAnswer(question: string): Promise<SemanticAnswer> 
   // Match both ASCII [id] and the full-width 【id】 brackets some models
   // substitute regardless of prompt instruction (observed empirically) —
   // parsing has to be robust to model output, not just the ideal case.
-  const citedIds = new Set([...text.matchAll(/[[【]([^\]】\s]+)[\]】]/g)].map((m) => m[1]));
+  // Allow (and trim) whitespace padding inside the brackets — observed the
+  // model writing "[ tower_MUM-008 ]" despite instructions, which the old
+  // \s-excluding pattern silently failed to match at all, dropping valid
+  // citations rather than flagging them unsupported. `+?` (lazy) stops at
+  // the first closing bracket so multi-citation sentences don't get merged.
+  // Two more real, observed failure modes handled here:
+  // - a zero-width space (U+200B) landed right after "[" in one response —
+  //   invisible when printed, and NOT matched by JS's \s (a known regex
+  //   gotcha: U+200B is excluded from \s), so it survived the old trim and
+  //   left the captured id one invisible character off from the real one.
+  // - multiple ids in one bracket, e.g. "[tower_MUM-008 ; tower_MUM-009]" —
+  //   split on common separators rather than treating the whole thing as
+  //   one (unmatchable) id.
+  const stripZeroWidth = (s: string) => s.replace(/[\u200B\u200C\u200D\uFEFF]/g, "");
+  const citedIds = new Set(
+    [...text.matchAll(/[[【]\s*([^\]】]+?)\s*[\]】]/g)]
+      .flatMap((m) => stripZeroWidth(m[1]).split(/\s*[;,]\s*/))
+      .map((id) => id.trim())
+      .filter(Boolean),
+  );
   const validCitations = retrieved.filter((d) => citedIds.has(d.sourceId));
   const strippedCount = citedIds.size - validCitations.length;
   mark(

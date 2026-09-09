@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { WsShell } from "@/components/ws/ws-shell";
 import { cn } from "@/lib/utils";
 import {
@@ -184,6 +185,28 @@ export default function NetworkPage() {
   const [activeClusters, setActiveClusters] = useState<Set<string>>(new Set());
   const [expandedFir, setExpandedFir] = useState<string | null>(null);
 
+  const select = async (n: GraphNode) => {
+    setSelected(n);
+    setDossier(null);
+    setExpandedFir(null);
+    setDossierLoading(true);
+    try {
+      const r = await fetch(`/api/suspects/${n.key}`);
+      if (r.ok) setDossier(await r.json());
+    } finally {
+      setDossierLoading(false);
+    }
+  };
+
+  const centerOnNode = (n: GraphNode) => {
+    const p = positions.get(n.id);
+    if (!p) return;
+    setView((v) => {
+      const scale = Math.max(v.scale, 1.4);
+      return { scale, x: VIEW_W / 2 - p.x * scale, y: VIEW_H / 2 - p.y * scale };
+    });
+  };
+
   const jumpToContact = (name: string) => {
     const n = data?.nodes.find((x) => x.name === name);
     if (!n) return;
@@ -199,6 +222,13 @@ export default function NetworkPage() {
     });
   };
 
+  const searchParams = useSearchParams();
+  // A ref, not state: this only gates a one-time action inside an effect
+  // and must never itself trigger a re-render (that pattern — setState
+  // synchronously inside an effect body — causes an avoidable cascading
+  // render; a ref mutation does not).
+  const focusedFromUrlRef = useRef(false);
+
   useEffect(() => {
     fetch("/api/network")
       .then((r) => r.json())
@@ -207,6 +237,25 @@ export default function NetworkPage() {
         setPositions(forceLayout(d.nodes, d.edges));
       });
   }, []);
+
+  // Cross-page navigation target: /network?focus=<key> (from Suspects'
+  // "Locate in graph" button) — select and center that node once the graph
+  // has finished laying out, exactly once per page load.
+  useEffect(() => {
+    const focus = searchParams.get("focus");
+    if (!focus || !data || focusedFromUrlRef.current || positions.size === 0) return;
+    const node = data.nodes.find((n) => n.key === focus);
+    focusedFromUrlRef.current = true;
+    if (!node) return;
+    // Deferred a tick: select()/centerOnNode() setState synchronously, and
+    // react-hooks/set-state-in-effect flags that even through a function
+    // call — queueMicrotask moves it out of the effect's own call stack.
+    queueMicrotask(() => {
+      select(node);
+      centerOnNode(node);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, positions, searchParams]);
 
   // Screen (client) coords -> the SVG's own 1000x620 viewBox coords.
   const toViewBoxPoint = (clientX: number, clientY: number) => {
@@ -227,15 +276,6 @@ export default function NetworkPage() {
   };
 
   const resetView = () => setView({ x: 0, y: 0, scale: 1 });
-
-  const centerOnNode = (n: GraphNode) => {
-    const p = positions.get(n.id);
-    if (!p) return;
-    setView((v) => {
-      const scale = Math.max(v.scale, 1.4);
-      return { scale, x: VIEW_W / 2 - p.x * scale, y: VIEW_H / 2 - p.y * scale };
-    });
-  };
 
   const onWheel = (e: React.WheelEvent<SVGSVGElement>) => {
     e.preventDefault();
@@ -271,18 +311,6 @@ export default function NetworkPage() {
 
   const radiusOf = (n: GraphNode) => 7 + 13 * ((data?.metrics[n.id]?.betweenness ?? 0) / bMax);
 
-  const select = async (n: GraphNode) => {
-    setSelected(n);
-    setDossier(null);
-    setExpandedFir(null);
-    setDossierLoading(true);
-    try {
-      const r = await fetch(`/api/suspects/${n.key}`);
-      if (r.ok) setDossier(await r.json());
-    } finally {
-      setDossierLoading(false);
-    }
-  };
 
   const pointerDown = (e: React.PointerEvent, n: GraphNode) => {
     if (e.button !== 0) return;
@@ -643,7 +671,7 @@ export default function NetworkPage() {
                 )}
 
                 <Link
-                  href={selected.type === "burner" ? "/suspects/burner" : `/suspects/${selected.key}`}
+                  href={`/suspects?focus=${encodeURIComponent(selected.name)}`}
                   className="group mt-5 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-neutral-950"
                 >
                   Open full dossier

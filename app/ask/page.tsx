@@ -5,7 +5,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { WS_NAV } from "@/components/ws/ws-shell";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   ArrowUp,
   ArrowUpRight,
@@ -256,6 +256,7 @@ function MessageBubble({ message, onFollowUp }: { message: ChatMessage; onFollow
 
 export default function AskPage() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -286,6 +287,17 @@ export default function AskPage() {
   useEffect(() => {
     loadOverview();
   }, [loadOverview]);
+
+  // Cross-page navigation target: /ask?q=<question> (from Suspects' "Ask
+  // about X" button, Evidence chain items, etc.) — submit it once on load.
+  const autoSubmittedRef = useRef(false);
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (!q || autoSubmittedRef.current) return;
+    autoSubmittedRef.current = true;
+    handleSubmit(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
