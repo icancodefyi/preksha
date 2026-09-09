@@ -165,7 +165,7 @@ function QueryTrace({
   );
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+function MessageBubble({ message, onFollowUp }: { message: ChatMessage; onFollowUp: (q: string) => void }) {
   const isUser = message.role === "user";
   const a = message.structured;
   const [openTrace, setOpenTrace] = useState(false);
@@ -219,6 +219,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
                   <button
                     key={q}
                     type="button"
+                    onClick={() => onFollowUp(q)}
                     className="rounded-full border border-neutral-200/80 bg-white px-3 py-1.5 text-[12px] font-medium tracking-[-0.01em] text-neutral-600 transition-colors hover:border-neutral-950 hover:text-neutral-950"
                   >
                     {q}
@@ -589,7 +590,7 @@ export default function AskPage() {
 
             {messages.map((msg, i) => (
               <div key={i}>
-                <MessageBubble message={msg} />
+                <MessageBubble message={msg} onFollowUp={(q) => handleSubmit(q)} />
               </div>
             ))}
 
