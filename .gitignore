@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local sqlite db (Phase 7 MVP datastore — never commit seeded credentials/data)
+prisma/*.db
+prisma/*.db-journal
+
+# local object storage (Phase 4/ADR-03 — raw uploaded evidence artifacts)
+/storage
+

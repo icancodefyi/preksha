@@ -1,0 +1,319 @@
+// Phase 7 (docs/ARCHITECTURE.md) — Postgres design, SQLite provider for MVP (ADR-02).
+// SQLite has no native enum/array/uuid types in Prisma: enums -> commented String,
+// arrays -> Json, ids -> String @default(uuid()).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  displayName  String   @map("display_name")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  roles             UserRole[]
+  casesCreated      Case[]                    @relation("CaseCreatedBy")
+  assignments       CaseAssignment[]          @relation("AssignmentUser")
+  assignmentsGranted CaseAssignment[]         @relation("AssignmentGrantedBy")
+  filesUploaded     FileRecord[]
+  erDecisions       EntityResolutionCandidate[]
+  analyticalRuns    AnalyticalRun[]
+  auditLogs         AuditLog[]
+  reportsGenerated  Report[]
+
+  @@map("users")
+}
+
+model Role {
+  id   Int    @id @default(autoincrement())
+  name String @unique // 'investigator' | 'supervisor' | 'analyst' | 'admin' | 'auditor'
+
+  users UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  userId String @map("user_id")
+  roleId Int    @map("role_id")
+
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model Case {
+  id          String   @id @default(uuid())
+  title       String
+  status      String   @default("open") // 'open' | 'closed' | 'archived'
+  sensitivity String   @default("standard") @map("sensitivity") // 'standard' | 'restricted'
+  createdById String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  createdBy   User?             @relation("CaseCreatedBy", fields: [createdById], references: [id])
+  assignments CaseAssignment[]
+  files       FileRecord[]
+  jobs        IngestionJob[]
+  evidence    Evidence[]
+  erCandidates EntityResolutionCandidate[]
+  analyticalRuns AnalyticalRun[]
+  inferences  Inference[]
+  reports     Report[]
+  communicationEvents CommunicationEvent[]
+  transactions        Transaction[]
+  observations        Observation[]
+
+  @@map("cases")
+}
+
+model CaseAssignment {
+  caseId      String   @map("case_id")
+  userId      String   @map("user_id")
+  accessLevel String   @map("access_level") // 'read' | 'contribute' | 'manage'
+  grantedById String?  @map("granted_by")
+  grantedAt   DateTime @default(now()) @map("granted_at")
+
+  case      Case  @relation(fields: [caseId], references: [id])
+  user      User  @relation("AssignmentUser", fields: [userId], references: [id])
+  grantedBy User? @relation("AssignmentGrantedBy", fields: [grantedById], references: [id])
+
+  @@id([caseId, userId])
+  @@map("case_assignments")
+}
+
+// Raw artifacts (Phase 5.1 object ownership: metadata here, bytes in object storage)
+model FileRecord {
+  id                String   @id @default(uuid())
+  caseId            String   @map("case_id")
+  sourceType        String   @map("source_type") // 'fir' | 'cdr' | 'ipdr' | 'financial' | 'tower_dump' | 'cctv' | 'other'
+  filename          String
+  contentHash       String   @map("content_hash") // sha256 — idempotent re-upload detection
+  objectStorageKey  String   @map("object_storage_key")
+  uploadedById      String?  @map("uploaded_by")
+  uploadedAt        DateTime @default(now()) @map("uploaded_at")
+
+  case     Case           @relation(fields: [caseId], references: [id])
+  uploadedBy User?        @relation(fields: [uploadedById], references: [id])
+  jobs     IngestionJob[]
+  evidence Evidence[]
+  communicationEvents CommunicationEvent[]
+  transactions        Transaction[]
+  observations        Observation[]
+
+  @@unique([caseId, contentHash])
+  @@map("files")
+}
+
+// Bulk structured records (Phase 5.1: "never collapse to a single edge only" —
+// these are the per-row facts the graph engine aggregates from; case+file
+// scoped for provenance and AuthZ. Field names mirror lib/data/types.ts so
+// the parsers can map 1:1 from the CSV shape used throughout the demo dataset.
+model CommunicationEvent {
+  id           String   @id @default(uuid())
+  caseId       String   @map("case_id")
+  fileId       String   @map("file_id")
+  callId       String   @map("call_id")
+  caller       String
+  receiver     String
+  timestamp    DateTime
+  durationSec  Int      @map("duration_sec")
+  callType     String   @map("call_type")
+  callerCell   String?  @map("caller_cell")
+  receiverCell String?  @map("receiver_cell")
+  imeiCaller   String?  @map("imei_caller")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  case Case       @relation(fields: [caseId], references: [id])
+  file FileRecord @relation(fields: [fileId], references: [id])
+
+  @@unique([caseId, callId])
+  @@index([caseId, caller, receiver])
+  @@index([caseId, timestamp])
+  @@map("communication_events")
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  caseId      String   @map("case_id")
+  fileId      String   @map("file_id")
+  txnId       String   @map("txn_id")
+  timestamp   DateTime
+  fromAccount String   @map("from_account")
+  fromName    String   @map("from_name")
+  toAccount   String   @map("to_account")
+  toName      String   @map("to_name")
+  amount      Float
+  method      String?
+  bank        String?
+  remark      String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  case Case       @relation(fields: [caseId], references: [id])
+  file FileRecord @relation(fields: [fileId], references: [id])
+
+  @@unique([caseId, txnId])
+  @@index([caseId, fromName, toName])
+  @@index([caseId, timestamp])
+  @@map("transactions")
+}
+
+model Observation {
+  id        String   @id @default(uuid())
+  caseId    String   @map("case_id")
+  fileId    String   @map("file_id")
+  source    String   // 'tower_dump' | 'cctv'
+  dumpId    String   @map("dump_id")
+  phone     String?
+  imei      String?
+  timestamp DateTime
+  cellId    String?  @map("cell_id")
+  event     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  case Case       @relation(fields: [caseId], references: [id])
+  file FileRecord @relation(fields: [fileId], references: [id])
+
+  @@unique([caseId, dumpId])
+  @@index([caseId, phone])
+  @@index([caseId, timestamp])
+  @@map("observations")
+}
+
+model IngestionJob {
+  id         String    @id @default(uuid())
+  fileId     String    @map("file_id")
+  caseId     String    @map("case_id")
+  stage      String    // 'validate' | 'ocr' | 'nlp' | 'entity_resolution' | 'graph_build' | 'analytics' | 'index'
+  status     String    @default("queued") // 'queued' | 'running' | 'succeeded' | 'succeeded_with_errors' | 'failed' | 'retrying'
+  attempt    Int       @default(0)
+  error      String?
+  startedAt  DateTime? @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  file FileRecord @relation(fields: [fileId], references: [id])
+  case Case       @relation(fields: [caseId], references: [id])
+
+  @@index([caseId, status])
+  @@map("ingestion_jobs")
+}
+
+// Evidence / provenance backbone — Phase 5.2's seven-layer ladder
+model Evidence {
+  id                String   @id @default(uuid())
+  caseId            String   @map("case_id")
+  fileId            String?  @map("file_id")
+  stage             String   // 'extraction' | 'resolution' | 'derived_relationship' | 'analytical_result'
+  recordType        String   @map("record_type") // 'fir_entity' | 'cdr_record' | 'transaction' | 'observation' | ...
+  recordId          String?  @map("record_id")
+  extractor         String?  // 'spacy_ner_v1' | 'manual' | 'deterministic_phone_match' | ...
+  extractorVersion  String?  @map("extractor_version")
+  confidence        Float?
+  spanStart         Int?     @map("span_start")
+  spanEnd           Int?     @map("span_end")
+  page              Int?
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  case Case       @relation(fields: [caseId], references: [id])
+  file FileRecord? @relation(fields: [fileId], references: [id])
+
+  @@index([caseId, recordType])
+  @@map("evidence")
+}
+
+// Phase 5.3 entity resolution pipeline — reviewable, reversible, never auto-merge on name alone
+model EntityResolutionCandidate {
+  id           String    @id @default(uuid())
+  caseId       String    @map("case_id")
+  entityARef   String    @map("entity_a_ref")
+  entityBRef   String    @map("entity_b_ref")
+  score        Float
+  signals      Json      // {"phone_exact": true, "name_similarity": 0.82, ...}
+  status       String    @default("pending") // 'pending' | 'accepted' | 'rejected' | 'reverted'
+  decidedById  String?   @map("decided_by")
+  decidedAt    DateTime? @map("decided_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  case      Case  @relation(fields: [caseId], references: [id])
+  decidedBy User? @relation(fields: [decidedById], references: [id])
+
+  @@index([caseId, status])
+  @@map("entity_resolution_candidates")
+}
+
+// Deterministic analytics — versioned, never overwritten in place (Phase 6.2)
+model AnalyticalRun {
+  id            String   @id @default(uuid())
+  caseId        String   @map("case_id")
+  metric        String   // 'betweenness' | 'pagerank' | 'community' | 'disruption'
+  parameters    Json?
+  resultSummary Json?    @map("result_summary")
+  computedAt    DateTime @default(now()) @map("computed_at")
+  triggeredById String?  @map("triggered_by")
+
+  case        Case  @relation(fields: [caseId], references: [id])
+  triggeredBy User? @relation(fields: [triggeredById], references: [id])
+
+  @@index([caseId, metric, computedAt])
+  @@map("analytical_runs")
+}
+
+// Explicitly separate from Evidence (Phase 2.15 / Phase 5.2 rung 6 — hypotheses, not facts)
+model Inference {
+  id         String   @id @default(uuid())
+  caseId     String   @map("case_id")
+  kind       String   // 'link_prediction' | 'anomaly'
+  subjectRef String   @map("subject_ref")
+  score      Float
+  model      String
+  reviewed   Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  case Case @relation(fields: [caseId], references: [id])
+
+  @@map("inferences")
+}
+
+// Append-only (Phase 9.2, Gap #4/#7) — do not add update/delete paths for this model
+model AuditLog {
+  id             Int      @id @default(autoincrement())
+  actorId        String?  @map("actor_id")
+  action         String   // 'query' | 'view_entity' | 'export_report' | 'merge_entity' | 'login' | ...
+  caseId         String?  @map("case_id")
+  resourceRef    String?  @map("resource_ref")
+  requestSummary Json?    @map("request_summary")
+  resultSummary  Json?    @map("result_summary")
+  ipAddress      String?  @map("ip_address")
+  at             DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([caseId, at])
+  @@index([actorId, at])
+  @@map("audit_logs")
+}
+
+model Report {
+  id                String   @id @default(uuid())
+  caseId            String   @map("case_id")
+  title             String
+  generatedById     String?  @map("generated_by")
+  citedEvidenceIds  Json     @map("cited_evidence_ids") // string[] of Evidence.id
+  objectStorageKey  String   @map("object_storage_key")
+  generatedAt       DateTime @default(now()) @map("generated_at")
+
+  case        Case  @relation(fields: [caseId], references: [id])
+  generatedBy User? @relation(fields: [generatedById], references: [id])
+
+  @@map("reports")
+}
