@@ -113,44 +113,6 @@ function facadeTextures(seed: number, wCells = 5, hCells = 6): { map: THREE.Canv
   return { map, emis: em };
 }
 
-function storeTextures(): { map: THREE.CanvasTexture; emis: THREE.CanvasTexture } {
-  const W = 512;
-  const H = 384;
-  const wall = document.createElement("canvas");
-  wall.width = W;
-  wall.height = H;
-  const wc = wall.getContext("2d")!;
-  wc.fillStyle = "#182136";
-  wc.fillRect(0, 0, W, H);
-  wc.fillStyle = "#0c1a24";
-  wc.fillRect(30, 150, 200, 190);
-  wc.fillRect(282, 150, 200, 190);
-  wc.fillStyle = "#05080f";
-  wc.fillRect(230, 150, 52, 190);
-  wc.fillStyle = "#7a1626";
-  wc.fillRect(10, 120, W - 20, 46);
-
-  const emis = document.createElement("canvas");
-  emis.width = W;
-  emis.height = H;
-  const ec = emis.getContext("2d")!;
-  ec.fillStyle = "#000000";
-  ec.fillRect(0, 0, W, H);
-  ec.fillStyle = "rgba(255,196,120,0.95)";
-  ec.fillRect(34, 154, 192, 182);
-  ec.fillRect(286, 154, 192, 182);
-  ec.fillStyle = "rgba(255,214,140,1)";
-  ec.fillRect(120, 40, 272, 60);
-  ec.fillStyle = "#000000";
-  ec.fillRect(126, 46, 260, 48);
-
-  const map = new THREE.CanvasTexture(wall);
-  const em = new THREE.CanvasTexture(emis);
-  map.anisotropy = 4;
-  em.anisotropy = 4;
-  return { map, emis: em };
-}
-
 function groundTexture(): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = 1024;
@@ -193,6 +155,18 @@ function groundTexture(): THREE.CanvasTexture {
   return tex;
 }
 
+function makeGun(): THREE.Group {
+  const g = new THREE.Group();
+  const dark = new THREE.MeshStandardMaterial({ color: 0x0a0c12, roughness: 0.35, metalness: 0.7 });
+  const slide = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.08, 0.34), dark);
+  slide.position.set(0, 0.04, 0.1);
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.16, 0.08), dark);
+  grip.position.set(0, -0.06, -0.03);
+  grip.rotation.x = 0.3;
+  g.add(slide, grip);
+  return g;
+}
+
 interface Figure {
   group: THREE.Group;
   torso: THREE.Group;
@@ -201,6 +175,7 @@ interface Figure {
   leftArm: THREE.Mesh;
   rightArm: THREE.Mesh;
   phone: THREE.Mesh;
+  gun: THREE.Group;
   label: THREE.Sprite;
   glow: THREE.Mesh;
   walkPhase: number;
@@ -279,6 +254,11 @@ function makePerson(id: string, color: string, name: string): Figure {
   rightArm.add(phone);
   phone.visible = false;
 
+  const gun = makeGun();
+  gun.position.set(0.32, 1.22, 0.12);
+  gun.visible = false;
+  group.add(gun);
+
   const glow = new THREE.Mesh(
     new THREE.CircleGeometry(0.5, 24),
     new THREE.MeshBasicMaterial({
@@ -297,7 +277,7 @@ function makePerson(id: string, color: string, name: string): Figure {
   label.position.set(0, 2.25, 0);
   group.add(label);
 
-  return { group, torso, leftLeg, rightLeg, leftArm, rightArm, phone, label, glow, walkPhase: 0 };
+  return { group, torso, leftLeg, rightLeg, leftArm, rightArm, phone, gun, label, glow, walkPhase: 0 };
 }
 
 function makeBike(color: string): THREE.Group {
@@ -322,27 +302,24 @@ function makeBike(color: string): THREE.Group {
   return g;
 }
 
-// ---------------------------------------------------------------------------
-// interior store set
-// ---------------------------------------------------------------------------
-interface Room {
-  group: THREE.Group;
-}
-
-function makeRoom(sx: number, sz: number): Room {
+// fully-enclosed interior room (no exterior bleed) with a doorway + backdrop
+function makeRoom(sx: number, sz: number): THREE.Group {
   const g = new THREE.Group();
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x1c2438, roughness: 0.85 });
-  const floorMat = new THREE.MeshStandardMaterial({ color: 0x141a28, roughness: 0.7 });
-  const ceilMat = new THREE.MeshStandardMaterial({ color: 0x0e1320, roughness: 0.9 });
-
   const hw = 5.6;
   const hd = 4.6;
   const H = 5.4;
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x2b3654, roughness: 0.85 });
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x1c2538, roughness: 0.7 });
+  const ceilMat = new THREE.MeshStandardMaterial({ color: 0x0e1320, roughness: 0.9 });
 
   const floor = new THREE.Mesh(new THREE.BoxGeometry(hw * 2, 0.2, hd * 2), floorMat);
   floor.position.y = 0;
   floor.receiveShadow = true;
   g.add(floor);
+
+  const ceil = new THREE.Mesh(new THREE.BoxGeometry(hw * 2, 0.2, hd * 2), ceilMat);
+  ceil.position.y = H;
+  g.add(ceil);
 
   const back = new THREE.Mesh(new THREE.BoxGeometry(hw * 2, H, 0.3), wallMat);
   back.position.set(0, H / 2, -hd);
@@ -359,9 +336,27 @@ function makeRoom(sx: number, sz: number): Room {
   right.receiveShadow = true;
   g.add(right);
 
-  const ceil = new THREE.Mesh(new THREE.BoxGeometry(hw * 2, 0.2, hd * 2), ceilMat);
-  ceil.position.y = H;
-  g.add(ceil);
+  // front wall with a doorway
+  const doorW = 2.4;
+  const doorH = 2.6;
+  const segW = hw - doorW / 2;
+  const frontL = new THREE.Mesh(new THREE.BoxGeometry(segW, H, 0.3), wallMat);
+  frontL.position.set(-(doorW / 2 + segW / 2), H / 2, hd);
+  g.add(frontL);
+  const frontR = new THREE.Mesh(new THREE.BoxGeometry(segW, H, 0.3), wallMat);
+  frontR.position.set(doorW / 2 + segW / 2, H / 2, hd);
+  g.add(frontR);
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(doorW, H - doorH, 0.3), wallMat);
+  lintel.position.set(0, (H + doorH) / 2, hd);
+  g.add(lintel);
+
+  // dark backdrop outside the door so only the interior reads
+  const backdrop = new THREE.Mesh(
+    new THREE.PlaneGeometry(24, 14),
+    new THREE.MeshBasicMaterial({ color: 0x04050a, side: THREE.DoubleSide }),
+  );
+  backdrop.position.set(0, H / 2, hd + 1.1);
+  g.add(backdrop);
 
   // ceiling lights
   const lightMat = new THREE.MeshBasicMaterial({ color: 0xfff2d0 });
@@ -392,7 +387,6 @@ function makeRoom(sx: number, sz: number): Room {
     opacity: 0.35,
   });
   const gemColors = [0xffd54a, 0x7fd0ff, 0xff8aa0, 0x8affd0];
-  const gems: THREE.Mesh[] = [];
   for (const cx of [-1.9, 1.9]) {
     const counter = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.95, 1.0), counterMat);
     counter.position.set(cx, 0.5, -1.5);
@@ -414,7 +408,6 @@ function makeRoom(sx: number, sz: number): Room {
       );
       gem.position.set(cx - 0.9 + k * 0.6, 1.14, -1.5);
       g.add(gem);
-      gems.push(gem);
     }
   }
 
@@ -435,10 +428,8 @@ function makeRoom(sx: number, sz: number): Room {
   g.add(dial);
 
   g.position.set(sx, 0, sz);
-  return { group: g };
+  return g;
 }
-
-// ---------------------------------------------------------------------------
 
 export default function SimScene({
   data,
@@ -473,7 +464,7 @@ export default function SimScene({
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     el.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -505,10 +496,13 @@ export default function SimScene({
     const rim = new THREE.DirectionalLight(0x4a6cff, 0.6);
     rim.position.set(-12, 8, -14);
     scene.add(rim);
-    // interior warm light
-    const roomLight = new THREE.PointLight(0xffd9a0, 40, 40, 2);
-    roomLight.position.set(data.scene.x, 4.2, data.scene.z);
+    // interior lights (inside the room, so they only reach the room once it's sealed)
+    const roomLight = new THREE.PointLight(0xffd9a0, 90, 40, 2);
+    roomLight.position.set(data.scene.x, 4.0, data.scene.z);
     scene.add(roomLight);
+    const roomFill = new THREE.PointLight(0xbfd4ff, 50, 40, 2);
+    roomFill.position.set(data.scene.x, 3.0, data.scene.z - 3);
+    scene.add(roomFill);
 
     const towerById = new Map(data.towers.map((t) => [t.id, t]));
     const actorById = new Map(data.actors.map((a) => [a.id, a]));
@@ -538,8 +532,7 @@ export default function SimScene({
         emissiveIntensity: 0.85,
         roughness: 0.8,
       });
-      const geo = new THREE.BoxGeometry(1.7, h, 1.7);
-      const b = new THREE.Mesh(geo, mat);
+      const b = new THREE.Mesh(new THREE.BoxGeometry(1.7, h, 1.7), mat);
       b.position.set(t.x, h / 2, t.z);
       b.castShadow = true;
       b.receiveShadow = true;
@@ -558,10 +551,10 @@ export default function SimScene({
       scene.add(lbl);
     }
 
-    // --- the store (exterior shell)
+    // --- the store (exterior shell, hidden during the interior cut)
     const store = (() => {
       const g = new THREE.Group();
-      const f = storeTextures();
+      const f = facadeTextures(211, 3, 4);
       const mat = new THREE.MeshStandardMaterial({
         map: f.map,
         emissive: 0xffcf96,
@@ -569,29 +562,17 @@ export default function SimScene({
         emissiveIntensity: 1.15,
         roughness: 0.7,
       });
-      const body = new THREE.Mesh(new THREE.BoxGeometry(3.2, 3.2, 2.4), mat);
-      body.position.y = 1.6;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(3.4, 3.4, 2.6), mat);
+      body.position.y = 1.7;
       body.castShadow = true;
       body.receiveShadow = true;
       g.add(body);
       const sign = new THREE.Mesh(
         new THREE.BoxGeometry(2.6, 0.5, 0.2),
-        new THREE.MeshStandardMaterial({
-          color: 0xffd68c,
-          emissive: 0xffd68c,
-          emissiveIntensity: 1.4,
-          roughness: 0.4,
-        }),
+        new THREE.MeshStandardMaterial({ color: 0xffd68c, emissive: 0xffd68c, emissiveIntensity: 1.4 }),
       );
-      sign.position.set(0, 3.35, 1.25);
+      sign.position.set(0, 3.55, 1.35);
       g.add(sign);
-      const canopy = new THREE.Mesh(
-        new THREE.BoxGeometry(3.5, 0.18, 0.6),
-        new THREE.MeshStandardMaterial({ color: 0x7a1626, roughness: 0.9 }),
-      );
-      canopy.position.set(0, 2.1, 1.55);
-      canopy.castShadow = true;
-      g.add(canopy);
       g.position.set(data.scene.x, 0, data.scene.z);
       return g;
     })();
@@ -599,23 +580,22 @@ export default function SimScene({
 
     // --- interior set (hidden until the robbery)
     const room = makeRoom(data.scene.x, data.scene.z);
-    room.group.visible = false;
-    scene.add(room.group);
+    room.visible = false;
+    scene.add(room);
 
-    // interior staff + robbers
     const worker1 = makePerson("worker", "#8fb0d8", "Store clerk");
     worker1.group.visible = false;
-    room.group.add(worker1.group);
+    room.add(worker1.group);
     const worker2 = makePerson("worker2", "#8fb0d8", "Cashier");
     worker2.group.visible = false;
-    room.group.add(worker2.group);
+    room.add(worker2.group);
 
     const interiorRobbers: Record<string, Figure> = {};
     for (const id of ["mohammed", "ravi", "santosh"]) {
       const a = actorById.get(id)!;
       const f = makePerson(id, a.color, a.name);
       f.group.visible = false;
-      room.group.add(f.group);
+      room.add(f.group);
       interiorRobbers[id] = f;
     }
 
@@ -630,7 +610,7 @@ export default function SimScene({
     bike2.scale.setScalar(0.9);
     scene.add(bike1, bike2);
 
-    // --- exterior people (members + remote kingpin)
+    // --- exterior people
     const figures: Record<string, Figure> = {};
     const prevPos: Record<string, { x: number; z: number }> = {};
     for (const a of data.actors) {
@@ -641,7 +621,7 @@ export default function SimScene({
       figures[a.id] = fig;
     }
 
-    // --- shell / financier plaques (finance strip) + kingpin HQ
+    // --- shell / financier plaques + kingpin HQ
     for (const a of data.actors) {
       if (a.kind === "remote") {
         const f = facadeTextures(505, 3, 3);
@@ -807,20 +787,26 @@ export default function SimScene({
     // --- camera rigs
     const sx = data.scene.x;
     const sz = data.scene.z;
-    const RIGS = {
-      exterior: { pos: new THREE.Vector3(-6, 14, 30), tgt: new THREE.Vector3(-1.5, 1.2, 0) },
-      interior: { pos: new THREE.Vector3(sx, 3.0, sz + 7.2), tgt: new THREE.Vector3(sx, 1.5, sz - 1.2) },
-      escape: { pos: new THREE.Vector3(sx - 4, 8, sz + 16), tgt: new THREE.Vector3(sx, 1.2, sz + 1) },
-      money: { pos: new THREE.Vector3(-9, 17, 26), tgt: new THREE.Vector3(-2, 1.5, 0) },
-    };
-    const camTgt = RIGS.exterior.tgt.clone();
+    const EXTERIOR = { pos: new THREE.Vector3(-6, 14, 30), tgt: new THREE.Vector3(-1.5, 1.2, 0) };
+    const ESCAPE = { pos: new THREE.Vector3(sx - 4, 8, sz + 16), tgt: new THREE.Vector3(sx, 1.2, sz + 1) };
+    const MONEY = { pos: new THREE.Vector3(-9, 17, 26), tgt: new THREE.Vector3(-2, 1.5, 0) };
+    const camTgt = EXTERIOR.tgt.clone();
+
+    function interiorRig(t: number): { pos: THREE.Vector3; tgt: THREE.Vector3 } {
+      // multiple camera angles inside the sealed room
+      if (t < 56) return { pos: new THREE.Vector3(sx, 2.3, sz - 3.6), tgt: new THREE.Vector3(sx, 1.2, sz + 2.6) }; // wide, door
+      if (t < 58) return { pos: new THREE.Vector3(sx, 1.8, sz - 2.5), tgt: new THREE.Vector3(sx, 1.5, sz + 0.4) }; // staff POV
+      if (t < 60) return { pos: new THREE.Vector3(sx + 4.0, 2.0, sz - 0.4), tgt: new THREE.Vector3(sx, 1.4, sz - 1.2) }; // side, gunpoint
+      if (t < 62) return { pos: new THREE.Vector3(sx + 1.6, 1.8, sz + 0.6), tgt: new THREE.Vector3(sx, 1.5, sz + 0.1) }; // close on robbers
+      return { pos: new THREE.Vector3(sx, 2.3, sz - 3.6), tgt: new THREE.Vector3(sx, 1.2, sz + 2.6) }; // wide, flee
+    }
 
     function rigFor(t: number) {
-      if (t < 53.5) return RIGS.exterior;
-      if (t < 64) return RIGS.interior;
-      if (t < 84) return RIGS.escape;
-      if (t < 116) return RIGS.money;
-      return RIGS.exterior;
+      if (t < 53.5) return EXTERIOR;
+      if (t < 64) return interiorRig(t);
+      if (t < 84) return ESCAPE;
+      if (t < 116) return MONEY;
+      return EXTERIOR;
     }
 
     function isInterior(t: number) {
@@ -828,27 +814,25 @@ export default function SimScene({
     }
 
     // interior robber choreography (local coords relative to room center)
-    const lanes: Record<string, number> = { mohammed: -2.1, ravi: 0, santosh: 2.1 };
+    const entryX: Record<string, number> = { mohammed: -0.8, ravi: 0, santosh: 0.8 };
+    const finalX: Record<string, number> = { mohammed: -2.1, ravi: 0, santosh: 2.1 };
 
     function robberInteriorPos(id: string, t: number): { x: number; z: number; rotY: number; vis: boolean } {
-      const lx = lanes[id];
-      if (t < 54) return { x: lx, z: 4.6, rotY: Math.PI, vis: false };
+      if (t < 54) return { x: entryX[id], z: 4.3, rotY: Math.PI, vis: false };
       if (t < 56) {
-        const u = (t - 54) / 2;
-        return { x: lx, z: lerp(4.6, 0.3, u), rotY: Math.PI, vis: true };
+        const u = ease((t - 54) / 2);
+        return { x: lerp(entryX[id], finalX[id], u), z: lerp(4.3, 0.4, u), rotY: Math.PI, vis: true };
       }
-      if (t < 58) {
-        return { x: lx, z: 0.3, rotY: Math.PI, vis: true };
-      }
+      if (t < 58) return { x: finalX[id], z: 0.4, rotY: Math.PI, vis: true };
       if (t < 60) {
         const u = (t - 58) / 2;
-        return { x: lx, z: lerp(0.3, -0.4, u), rotY: Math.PI, vis: true };
+        return { x: finalX[id], z: lerp(0.4, -0.5, u), rotY: Math.PI, vis: true };
       }
       if (t < 64) {
         const u = (t - 60) / 4;
-        return { x: lx + (lx === 0 ? 0 : Math.sign(lx)) * u * 0.9, z: lerp(-0.4, 4.6, u), rotY: 0, vis: true };
+        return { x: lerp(finalX[id], entryX[id], u), z: lerp(-0.5, 4.3, u), rotY: 0, vis: true };
       }
-      return { x: lx, z: 4.6, rotY: 0, vis: false };
+      return { x: entryX[id], z: 4.3, rotY: 0, vis: false };
     }
 
     function resize() {
@@ -869,7 +853,7 @@ export default function SimScene({
       store.visible = !interior;
       bike1.visible = !interior;
       bike2.visible = !interior;
-      room.group.visible = interior;
+      room.visible = interior;
 
       onCall.clear();
       for (const e of data.events) {
@@ -914,16 +898,27 @@ export default function SimScene({
 
       // --- interior staff + robbers
       if (interior) {
+        const threat = t >= 56 && t < 60;
         worker1.group.visible = true;
         worker2.group.visible = true;
-        worker1.group.position.set(-2.6, 0, -2.4);
-        worker2.group.position.set(2.6, 0, -2.4);
-        worker1.group.rotation.y = Math.PI;
-        worker2.group.rotation.y = Math.PI;
-        // workers crouch during the attack
-        const crouch = t >= 56 ? -0.25 : 0;
+        worker1.group.position.set(-2.7, 0, -2.4);
+        worker2.group.position.set(2.7, 0, -2.4);
+        worker1.group.rotation.y = 0;
+        worker2.group.rotation.y = 0;
+        const crouch = threat ? -0.25 : 0;
         worker1.torso.position.y = crouch;
         worker2.torso.position.y = crouch;
+        if (threat) {
+          worker1.leftArm.rotation.x = -1.7;
+          worker1.rightArm.rotation.x = -1.7;
+          worker2.leftArm.rotation.x = -1.7;
+          worker2.rightArm.rotation.x = -1.7;
+        } else {
+          worker1.leftArm.rotation.x = 0;
+          worker1.rightArm.rotation.x = 0;
+          worker2.leftArm.rotation.x = 0;
+          worker2.rightArm.rotation.x = 0;
+        }
 
         for (const id of ["mohammed", "ravi", "santosh"]) {
           const f = interiorRobbers[id];
@@ -938,9 +933,10 @@ export default function SimScene({
           const swing = moving ? Math.sin(f.walkPhase) * 0.6 : 0;
           f.leftLeg.rotation.x = swing;
           f.rightLeg.rotation.x = -swing;
-          f.rightArm.rotation.x = t >= 54 && t < 60 ? -0.9 : -swing * 0.7;
+          const holdingGun = t >= 54 && t < 60;
+          f.gun.visible = holdingGun;
+          f.rightArm.rotation.x = holdingGun ? -0.95 : -swing * 0.7;
           f.leftArm.rotation.x = swing * 0.7;
-          // pinging phones inside
           f.phone.visible = t >= 54 && t < 60;
         }
       } else {
@@ -995,11 +991,7 @@ export default function SimScene({
           const tip = buildingTip[e.towerId!];
           if (tip) tip.scale.setScalar(1 + Math.sin(u * Math.PI) * (e.ambient ? 0.6 : 1.6));
         } else if (e.kind === "offense") {
-          if (interior) {
-            offenseRing.position.set(sx, 0.08, sz);
-          } else {
-            offenseRing.position.set(data.scene.x, 0.08, data.scene.z);
-          }
+          offenseRing.position.set(sx, 0.08, sz);
           offenseRing.visible = true;
           offenseRing.scale.setScalar(0.3 + u * 16);
           (offenseRing.material as THREE.MeshBasicMaterial).opacity = (1 - u) * 0.95;
@@ -1027,8 +1019,7 @@ export default function SimScene({
           ringIdx++;
           ring.position.set(sx + p.x, 0.06, sz + p.z);
           ring.visible = true;
-          const pulse = 0.3 + ((t * 2) % 1) * 3.5;
-          ring.scale.setScalar(pulse);
+          ring.scale.setScalar(0.3 + ((t * 2) % 1) * 3.5);
           (ring.material as THREE.MeshBasicMaterial).opacity = 0.7;
         }
       }
@@ -1064,10 +1055,10 @@ export default function SimScene({
 
       // cinematic camera
       const rig = rigFor(c.t);
-      const k = 1 - Math.exp(-dt * 2.4);
+      const k = 1 - Math.exp(-dt * 3.4);
       camera.position.lerp(rig.pos, k);
       camTgt.lerp(rig.tgt, k);
-      const sway = 0.12 * Math.sin(now * 0.0004) + 0.05 * Math.sin(now * 0.0013);
+      const sway = 0.08 * Math.sin(now * 0.0005) + 0.04 * Math.sin(now * 0.0017);
       camera.position.x += sway;
       camera.lookAt(camTgt);
 

@@ -16,6 +16,12 @@ export default function SimulatePage() {
     const f = sp.get("fir");
     return f && Number.isFinite(Number(f)) ? Number(f) : 4;
   });
+  const [initialT] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    const sp = new URLSearchParams(window.location.search);
+    const t = sp.get("t");
+    return t && Number.isFinite(Number(t)) ? Number(t) : 0;
+  });
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState(1);
   const [time, setTime] = useState(0);
@@ -25,21 +31,22 @@ export default function SimulatePage() {
   useEffect(() => {
     let alive = true;
     controller.current.t = 0;
+    const t0 = initialT;
     fetch(`/api/simulation?fir=${firIdx}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("no simulation"))))
       .then((d: SimData) => {
         if (!alive) return;
         setError(null);
         setData(d);
-        setTime(0);
-        emitRef.current = 0;
-        controller.current.t = 0;
+        setTime(t0);
+        emitRef.current = t0;
+        controller.current.t = t0;
       })
       .catch(() => alive && setError("No replay available for that case."));
     return () => {
       alive = false;
     };
-  }, [firIdx]);
+  }, [firIdx, initialT]);
 
   useEffect(() => {
     controller.current.playing = playing;
@@ -78,6 +85,7 @@ export default function SimulatePage() {
   };
 
   const restart = () => {
+    spokenRef.current = null;
     seek(0);
     setPlaying(true);
   };
@@ -86,6 +94,42 @@ export default function SimulatePage() {
     const i = SPEEDS.indexOf(speed);
     setSpeed(SPEEDS[(i + 1) % SPEEDS.length]);
   };
+
+  // --- suspense voice-over
+  const [voiceOn, setVoiceOn] = useState(true);
+  const spokenRef = useRef<string | null>(null);
+  const NARRATION: Record<string, string> = {
+    premed: "November twelfth. Twenty twenty-three. Dadar, Mumbai. In the records... a plan begins to form.",
+    approach:
+      "Three phones move closer. Mohammed. Ravi. Santosh. And one more — a second SIM. Unknown. Untraceable.",
+    offense: "Eight o'clock. They're inside. The phones ping the tower. It's happening... now.",
+    escape: "In sixty seconds, it is over. But the network leaves a trail.",
+    money: "Six lakh twenty thousand rupees. Routed through a shell company. And another. And another.",
+    close: "Every step, recorded. Every rupee, traced. This... is Preksha.",
+  };
+  useEffect(() => {
+    if (!voiceOn || !activePhase || !playing) return;
+    if (spokenRef.current === activePhase.key) return;
+    spokenRef.current = activePhase.key;
+    const line = NARRATION[activePhase.key];
+    if (!line || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(line);
+    u.rate = 0.92;
+    u.pitch = 0.72;
+    const voices = window.speechSynthesis.getVoices();
+    const v = voices.find((x) => /en(-|_)GB/i.test(x.lang)) ?? voices.find((x) => /en/i.test(x.lang));
+    if (v) u.voice = v;
+    window.speechSynthesis.speak(u);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceOn, activePhase, playing]);
+
+  // --- fade to black around the interior cut
+  const fade = useMemo(() => {
+    if (!data) return 0;
+    const ramp = (t: number, c: number, half: number) => Math.max(0, Math.min(1, 1 - Math.abs(t - c) / half));
+    return Math.max(ramp(time, 53.9, 0.9), ramp(time, 64.1, 0.9));
+  }, [data, time]);
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#05060b] text-neutral-100">
@@ -107,6 +151,9 @@ export default function SimulatePage() {
           </div>
         </div>
       )}
+
+      {/* fade-to-black cut */}
+      <div className="pointer-events-none absolute inset-0 z-30 bg-black" style={{ opacity: fade }} />
 
       {/* top bar */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between p-5">
@@ -234,7 +281,27 @@ export default function SimulatePage() {
             >
               {speed}×
             </button>
-            <div className="ml-2 font-mono text-sm tabular-nums text-neutral-400">
+            <button
+              onClick={() => {
+                seek(54);
+                setPlaying(true);
+              }}
+              className="h-11 rounded-full border border-red-400/40 bg-red-500/10 px-4 text-sm font-semibold text-red-300 transition hover:bg-red-500/20"
+            >
+              Skip to robbery →
+            </button>
+            <button
+              onClick={() => setVoiceOn((v) => !v)}
+              className={`h-11 rounded-full border px-4 text-sm font-medium transition ${
+                voiceOn
+                  ? "border-white/30 bg-white/10 text-white"
+                  : "border-white/15 text-neutral-400 hover:border-white/40"
+              }`}
+              title="Toggle voice-over"
+            >
+              {voiceOn ? "Voice on" : "Voice off"}
+            </button>
+            <div className="ml-auto font-mono text-sm tabular-nums text-neutral-400">
               {time.toFixed(1)}s / {data?.duration ?? 0}s
             </div>
           </div>
@@ -265,9 +332,14 @@ export default function SimulatePage() {
             />
             <div className="mt-0.5 flex justify-between text-[10px] uppercase tracking-wider text-neutral-500">
               {data?.phases.map((p) => (
-                <span key={p.key} style={{ color: activePhase?.key === p.key ? p.color : undefined }}>
+                <button
+                  key={p.key}
+                  onClick={() => seek(p.start)}
+                  className="cursor-pointer px-1 transition hover:text-white"
+                  style={{ color: activePhase?.key === p.key ? p.color : undefined }}
+                >
                   {p.label}
-                </span>
+                </button>
               ))}
             </div>
           </div>
