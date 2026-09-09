@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Nav from "./nav";
 import Carousel from "./carousel";
+import HorizontalFeed from "../components/intelligence/HorizontalFeed";
 import { useEffect, useRef, type VideoHTMLAttributes, type ReactNode } from "react";
 
 function PlayOnView({
@@ -78,6 +79,11 @@ export default function Home() {
         </div>
         <div className="land-scroll-hint">Scroll to Explore</div>
       </header>
+
+      {/* ——— Intelligence Feed ——— */}
+      <section className="land-section" style={{ paddingTop: 0, paddingBottom: 0 }}>
+        <HorizontalFeed />
+      </section>
 
       {/* ——— Capabilities carousel ——— */}
       <section className="land-section" id="use-cases">
