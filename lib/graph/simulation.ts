@@ -71,6 +71,7 @@ export interface SimPhase {
 export interface SimData {
   firNo: string;
   title: string;
+  category: string;
   date: string;
   time: string;
   summary: string;
@@ -492,6 +493,7 @@ export function buildGenericSimulation(fir: FIRRecord): SimData | null {
 
   return {
     firNo: fir.fir_no,
+    category: fir.category,
     title: fir.title,
     date: fir.incident_date,
     time: fir.incident_time === "-" ? "" : fir.incident_time,
@@ -696,6 +698,7 @@ function buildDadarSimulation(fir: FIRRecord): SimData {
 
   return {
     firNo: fir.fir_no,
+    category: fir.category,
     title: fir.title,
     date: fir.incident_date,
     time: fir.incident_time === "-" ? "" : fir.incident_time,

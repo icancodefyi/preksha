@@ -416,7 +416,20 @@ function loadModel(url: string, height: number, onLoad: (g: THREE.Group) => void
       const b2 = new THREE.Box3().setFromObject(wrap);
       const c2 = b2.getCenter(new THREE.Vector3());
       wrap.position.set(-c2.x, -b2.min.y, -c2.z);
+      // ease the scale in rather than popping to full size the instant the
+      // GLB finishes parsing — towers finish loading at slightly different
+      // moments (cache misses vs. cache hits), so a hard cut-in reads as
+      // the scene glitching rather than a building simply "arriving"
+      wrap.scale.setScalar(s * 0.4);
       onLoad(wrap);
+      const start = performance.now();
+      const grow = () => {
+        const u = Math.min(1, (performance.now() - start) / 380);
+        const eased = 1 - (1 - u) * (1 - u);
+        wrap.scale.setScalar(s * (0.4 + 0.6 * eased));
+        if (u < 1) requestAnimationFrame(grow);
+      };
+      requestAnimationFrame(grow);
     })
     .catch(() => {});
 }
@@ -651,7 +664,11 @@ export default function SimScene({
     key.shadow.camera.far = 90;
     key.shadow.bias = -0.0004;
     scene.add(key);
-    const rim = new THREE.DirectionalLight(0x4a6cff, 0.6);
+    // rim light gets a subtle per-case colour hint (blended, not replaced) —
+    // a cheap way to give each case its own mood without new geometry
+    const rimBase = new THREE.Color(0x4a6cff);
+    const rimColor = data.bespoke ? rimBase : rimBase.clone().lerp(new THREE.Color(data.actors[0]?.color ?? "#4a6cff"), 0.35);
+    const rim = new THREE.DirectionalLight(rimColor, 0.6);
     rim.position.set(-12, 8, -14);
     scene.add(rim);
     // interior lights (inside the room, so they only reach the room once it's sealed)
@@ -679,8 +696,15 @@ export default function SimScene({
     const cityGroup = new THREE.Group();
     scene.add(cityGroup);
     const buildingTip: Record<string, THREE.Mesh> = {};
-    const buildingModels = ["apartment", "house", "skyscraper", "smallbuilding"];
-    let seedBase = 900;
+    const buildingModels = ["apartment", "house", "skyscraper", "smallbuilding", "big_building", "building_red", "brown_building"];
+    // Seeded by this case's own FIR number — without this, building type and
+    // height followed the same fixed apartment/house/skyscraper/smallbuilding
+    // cycle in tower order for every single case, so every city looked like
+    // the same layout with a different tower count. Different case, different
+    // (still deterministic, so the same case looks the same on repeat) mix.
+    const caseSeed = [...data.firNo].reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) >>> 0, 7);
+    const cityRnd = mulberry32(caseSeed);
+    let seedBase = 900 + (caseSeed % 500);
     let namedSceneTower = false; // only the first scene tower gets the full location name — a second one nearby would just duplicate it
     data.towers.forEach((t, i) => {
       const isScene = t.scene;
@@ -712,9 +736,48 @@ export default function SimScene({
       lbl.position.set(0, h + 1.1 + stagger, 0);
       towerGrp.add(lbl);
 
-      const url = `/models/${buildingModels[i % buildingModels.length]}.glb`;
+      const url = `/models/${buildingModels[Math.floor(cityRnd() * buildingModels.length)]}.glb`;
       loadModel(url, h, (model) => towerGrp.add(model));
     });
+
+    // street clutter + a case-specific scenario prop (generic cases only) —
+    // the city previously had nothing at ground level besides buildings, and
+    // every case reached for the same handful of building shapes with no
+    // concrete tie to what actually happened there. A few static props near
+    // random towers plus one real vehicle/prop chosen from this case's own
+    // FIR category (arms → the intercepted truck, trafficking → the transit
+    // van, counterfeit → an ATM, everything else → a police car on scene)
+    // gives each case a visibly different street instead of an identical one.
+    if (!data.bespoke) {
+      const clutterModels = ["bench", "trashcan", "traffic_light"];
+      const clutterCount = Math.min(5, data.towers.length);
+      for (let i = 0; i < clutterCount; i++) {
+        const t = data.towers[Math.floor(cityRnd() * data.towers.length)];
+        if (!t) continue;
+        const model = clutterModels[Math.floor(cityRnd() * clutterModels.length)];
+        const angle = cityRnd() * Math.PI * 2;
+        const dist = 1.1 + cityRnd() * 0.6;
+        const grp = new THREE.Group();
+        grp.position.set(t.x + Math.cos(angle) * dist, 0, t.z + Math.sin(angle) * dist);
+        grp.rotation.y = cityRnd() * Math.PI * 2;
+        scene.add(grp);
+        loadModel(`/models/${model}.glb`, 0.55, (m) => grp.add(m));
+      }
+
+      const scenarioModel = data.category.includes("arms")
+        ? "pickup_truck"
+        : data.category === "human-trafficking"
+          ? "van"
+          : data.category === "counterfeit-currency"
+            ? "atm"
+            : "police_car";
+      const propGrp = new THREE.Group();
+      const propAngle = cityRnd() * Math.PI * 2;
+      propGrp.position.set(data.scene.x + Math.cos(propAngle) * 2.6, 0, data.scene.z + Math.sin(propAngle) * 2.6);
+      propGrp.rotation.y = propAngle + Math.PI;
+      scene.add(propGrp);
+      loadModel(`/models/${scenarioModel}.glb`, scenarioModel === "atm" ? 1.1 : 1.3, (m) => propGrp.add(m));
+    }
 
     // --- bespoke Act 2 (FIR 1201/2023 only): store interior, staff, the three
     // robbers' interior figures, and the getaway bikes. Every other case
@@ -939,6 +1002,26 @@ export default function SimScene({
       sceneBeacon = grp;
     }
 
+    // ambient background traffic (generic cases only) — a couple of bikes
+    // looping around the scene, purely decorative, using the same
+    // procedural bike geometry as the bespoke getaway (no GLTF load, so no
+    // pop-in delay). The city otherwise has nothing moving in it for most
+    // of the runtime, which is a big part of why it reads as a static
+    // diorama rather than a living place.
+    const ambientVehicles: { group: THREE.Group; radius: number; speed: number; phase: number }[] = [];
+    if (!data.bespoke) {
+      const spawn = (color: string, radius: number, speed: number, phase: number) => {
+        const bike = makeBike(color, "MH 12 AB 0000", null);
+        bike.plate.frame.visible = false;
+        bike.plate.label.visible = false;
+        bike.group.scale.setScalar(0.85);
+        scene.add(bike.group);
+        ambientVehicles.push({ group: bike.group, radius, speed, phase });
+      };
+      spawn("#2a2f3d", 12.5, 0.1, 0);
+      spawn("#3a2c2c", 17, -0.07, Math.PI * 0.6);
+    }
+
     // --- call arcs
     const callEvents = data.events.filter((e) => e.kind === "call");
     const arcs: { line: THREE.Line; pulse: THREE.Mesh }[] = callEvents.map(() => {
@@ -1032,6 +1115,42 @@ export default function SimScene({
     const sx = data.scene.x;
     const sz = data.scene.z;
     const EXTERIOR = { pos: new THREE.Vector3(-6, 14, 30), tgt: new THREE.Vector3(-1.5, 1.2, 0) };
+    // EXTERIOR alone used to hold t<53.5 (and the final 8s) completely
+    // static — 40%+ of the runtime with zero camera movement, which reads
+    // as slow/dead rather than cinematic. Orbit slowly around the same
+    // starting framing instead: exteriorRig(0) reproduces EXTERIOR exactly,
+    // so there's no jump cut, then it drifts.
+    const exteriorStartVec = EXTERIOR.pos.clone().sub(EXTERIOR.tgt);
+    const exteriorStartAngle = Math.atan2(exteriorStartVec.z, exteriorStartVec.x);
+    const exteriorRadiusXZ = Math.hypot(exteriorStartVec.x, exteriorStartVec.z);
+    // automatic tracking: find whichever call is active (or just ended) at
+    // t and pan toward the midpoint of its two participants, blended with
+    // the base framing — the camera actually follows who's talking instead
+    // of drifting past the action with no idea it's there
+    function trackedCenter(t: number): { x: number; z: number } | null {
+      let best: SimEvent | null = null;
+      for (const e of data.events) {
+        if (e.kind !== "call" || e.ambient) continue;
+        if (t >= e.t && t <= e.t + e.dur + 4) {
+          if (!best || e.t > best.t) best = e;
+        }
+      }
+      if (!best) return null;
+      const A = actorPos(best.a!, t);
+      const B = actorPos(best.b!, t);
+      if (!A.visible || !B.visible) return null;
+      return { x: (A.x + B.x) / 2, z: (A.z + B.z) / 2 };
+    }
+    function exteriorRig(t: number): { pos: THREE.Vector3; tgt: THREE.Vector3 } {
+      const angle = exteriorStartAngle + t * 0.035;
+      const track = trackedCenter(t);
+      const tgtX = track ? EXTERIOR.tgt.x * 0.4 + track.x * 0.6 : EXTERIOR.tgt.x;
+      const tgtZ = track ? EXTERIOR.tgt.z * 0.4 + track.z * 0.6 : EXTERIOR.tgt.z;
+      const x = tgtX + Math.cos(angle) * exteriorRadiusXZ;
+      const z = tgtZ + Math.sin(angle) * exteriorRadiusXZ;
+      const y = EXTERIOR.tgt.y + exteriorStartVec.y + Math.sin(t * 0.06) * 1.5;
+      return { pos: new THREE.Vector3(x, y, z), tgt: new THREE.Vector3(tgtX, EXTERIOR.tgt.y, tgtZ) };
+    }
     const ESCAPE = { pos: new THREE.Vector3(sx - 2, 6, sz + 15), tgt: new THREE.Vector3(sx, 1.2, sz + 2) };
     const CHASE = { pos: new THREE.Vector3(sx - 2.6, 2.4, sz + 2.5), tgt: new THREE.Vector3(sx - 2.6, 0.7, sz + 9) };
     const PLATE = { pos: new THREE.Vector3(sx - 2.6, 0.6, sz + 6.2), tgt: new THREE.Vector3(sx - 2.6, 0.5, sz + 8.6) };
@@ -1063,19 +1182,19 @@ export default function SimScene({
 
     function rigFor(t: number) {
       if (!data.bespoke) {
-        if (t < 53.5) return EXTERIOR;
+        if (t < 53.5) return exteriorRig(t);
         if (t < 64) return OFFENSE_PUSH;
         if (t < 84) return ESCAPE;
         if (t < 116) return MONEY;
-        return EXTERIOR;
+        return exteriorRig(t);
       }
-      if (t < 53.5) return EXTERIOR;
+      if (t < 53.5) return exteriorRig(t);
       if (t < 64) return interiorRig(t);
       if (t < 73) return ESCAPE;
       if (t < 80) return CHASE;
       if (t < 84) return PLATE;
       if (t < 116) return MONEY;
-      return EXTERIOR;
+      return exteriorRig(t);
     }
 
     function isInterior(t: number) {
@@ -1145,6 +1264,11 @@ export default function SimScene({
         const pulse = 0.82 + Math.sin(t * 1.3) * 0.18;
         sceneBeacon.scale.set(pulse, 1, pulse);
         sceneBeacon.rotation.y = t * 0.15;
+      }
+      for (const v of ambientVehicles) {
+        const angle = v.phase + t * v.speed;
+        v.group.position.set(sx + Math.cos(angle) * v.radius, 0, sz + Math.sin(angle) * v.radius);
+        v.group.rotation.y = angle + (v.speed > 0 ? Math.PI / 2 : -Math.PI / 2);
       }
 
       onCall.clear();
