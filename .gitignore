@@ -50,3 +50,7 @@ prisma/*.db-journal
 
 # local Qdrant binary + storage (downloaded, not committed)
 /.qdrant
+
+# Python RAG service venv
+rag_service/.venv
+rag_service/__pycache__

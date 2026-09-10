@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { WsShell } from "@/components/ws/ws-shell";
 import { cn } from "@/lib/utils";
+import { forceLayout } from "@/lib/graph/layout";
+import { GraphCanvas } from "@/components/graph/GraphCanvas";
 import {
   Loader2,
   ArrowUpRight,
@@ -77,80 +79,8 @@ const CLUSTER_COLOR: Record<string, string> = {
   unknown: "#9ca3af",
 };
 
-function forceLayout(nodes: GraphNode[], edges: GraphEdge[]) {
-  const W = 1000;
-  const H = 620;
-  const pos = new Map<string, { x: number; y: number }>();
-  const vel = new Map<string, { x: number; y: number }>();
-  nodes.forEach((n, i) => {
-    const a = (i / nodes.length) * Math.PI * 2;
-    const r = 150 + (i % 4) * 34;
-    pos.set(n.id, { x: W / 2 + Math.cos(a) * r, y: H / 2 + Math.sin(a) * r });
-    vel.set(n.id, { x: 0, y: 0 });
-  });
-
-  const REST = 118;
-  const REP = 4600;
-  const DAMP = 0.86;
-  const MAXV = 3.4;
-
-  for (let iter = 0; iter < 240; iter++) {
-    const force = new Map<string, { x: number; y: number }>();
-    for (const n of nodes) force.set(n.id, { x: 0, y: 0 });
-
-    // Repulsion
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        const a = pos.get(nodes[i].id)!;
-        const b = pos.get(nodes[j].id)!;
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        const d2 = Math.max(dx * dx + dy * dy, 1);
-        const d = Math.sqrt(d2);
-        const f = REP / d2;
-        const fx = (dx / d) * f;
-        const fy = (dy / d) * f;
-        force.get(nodes[i].id)!.x += fx;
-        force.get(nodes[i].id)!.y += fy;
-        force.get(nodes[j].id)!.x -= fx;
-        force.get(nodes[j].id)!.y -= fy;
-      }
-    }
-
-    // Springs
-    for (const e of edges) {
-      const a = pos.get(e.source)!;
-      const b = pos.get(e.target)!;
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const d = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
-      const f = (d - REST) * 0.045;
-      const fx = (dx / d) * f;
-      const fy = (dy / d) * f;
-      force.get(e.source)!.x += fx;
-      force.get(e.source)!.y += fy;
-      force.get(e.target)!.x -= fx;
-      force.get(e.target)!.y -= fy;
-    }
-
-    // Center pull + integrate
-    for (const n of nodes) {
-      const p = pos.get(n.id)!;
-      const v = vel.get(n.id)!;
-      const f = force.get(n.id)!;
-      v.x = (v.x + f.x + (W / 2 - p.x) * 0.02) * DAMP;
-      v.y = (v.y + f.y + (H / 2 - p.y) * 0.02) * DAMP;
-      const sp = Math.sqrt(v.x * v.x + v.y * v.y);
-      if (sp > MAXV) {
-        v.x = (v.x / sp) * MAXV;
-        v.y = (v.y / sp) * MAXV;
-      }
-      p.x += v.x;
-      p.y += v.y;
-    }
-  }
-  return pos;
-}
+// forceLayout moved to lib/graph/layout.ts — shared with the per-case
+// network tab (app/cases/[caseId]/page.tsx) so both use the same physics.
 
 export default function NetworkPage() {
   const [data, setData] = useState<NetworkData | null>(null);
@@ -438,66 +368,43 @@ export default function NetworkPage() {
                 onPointerLeave={backgroundPointerUp}
               >
                 <g transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
-                {data.edges.map((e, i) => {
-                  const a = positions.get(e.source);
-                  const b = positions.get(e.target);
-                  if (!a || !b) return null;
-                  const w = e.weight / Math.max(...data.edges.map((x) => x.weight), 1);
-                  const srcNode = data.nodes.find((n) => n.id === e.source);
-                  const tgtNode = data.nodes.find((n) => n.id === e.target);
-                  const dimmed =
-                    activeClusters.size > 0 &&
-                    !(srcNode && activeClusters.has(srcNode.cluster)) &&
-                    !(tgtNode && activeClusters.has(tgtNode.cluster));
-                  return (
-                    <line
-                      key={i}
-                      x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-                      stroke="#8b8b94"
-                      strokeWidth={0.7 + w * 2.4}
-                      strokeOpacity={dimmed ? 0.04 : 0.12 + w * 0.5}
-                    />
-                  );
-                })}
-                {data.nodes.map((n) => {
-                  const p = positions.get(n.id);
-                  if (!p) return null;
-                  const r = radiusOf(n);
-                  const color = n.type === "burner" ? "#dc2626" : CLUSTER_COLOR[n.cluster] ?? "#9ca3af";
-                  const isSel = selected?.id === n.id;
-                  const dimmed = activeClusters.size > 0 && !activeClusters.has(n.cluster);
-                  const label =
-                    (data.metrics[n.id]?.betweenness ?? 0) / bMax > 0.1 || n.firCount > 0 || n.type === "burner";
-                  return (
-                    <g
-                      key={n.id}
-                      onPointerDown={(e) => pointerDown(e, n)}
-                      className="cursor-pointer"
-                      opacity={dimmed ? 0.16 : 1}
-                    >
-                      {isSel && (
-                        <circle cx={p.x} cy={p.y} r={r + 7} fill="none" stroke="#17152A" strokeWidth={1.5} strokeDasharray="4 3" />
-                      )}
-                      <circle cx={p.x} cy={p.y} r={r} fill={color} fillOpacity={0.16} stroke={color} strokeWidth={1.6} />
-                      {n.type === "burner" && (
-                        <circle cx={p.x} cy={p.y} r={r + 3.5} fill="none" stroke="#dc2626" strokeWidth={1.4} strokeDasharray="3 2" />
-                      )}
-                      {label && (
-                        <text
-                          x={p.x} y={p.y - r - 8}
-                          textAnchor="middle"
-                          fontSize={isSel ? 12.5 : 11}
-                          fontWeight={isSel ? 700 : 500}
-                          fill="#3d3a49"
-                          className="pointer-events-none"
-                        >
-                          {n.name}
-                          {n.type === "burner" ? " ⚠" : ""}
-                        </text>
-                      )}
-                    </g>
-                  );
-                })}
+                  <GraphCanvas
+                    edges={data.edges.flatMap((e, i) => {
+                      const a = positions.get(e.source);
+                      const b = positions.get(e.target);
+                      if (!a || !b) return [];
+                      const w = e.weight / Math.max(...data.edges.map((x) => x.weight), 1);
+                      const srcNode = data.nodes.find((n) => n.id === e.source);
+                      const tgtNode = data.nodes.find((n) => n.id === e.target);
+                      const dimmed =
+                        activeClusters.size > 0 &&
+                        !(srcNode && activeClusters.has(srcNode.cluster)) &&
+                        !(tgtNode && activeClusters.has(tgtNode.cluster));
+                      return [{ id: String(i), x1: a.x, y1: a.y, x2: b.x, y2: b.y, width: 0.7 + w * 2.4, opacity: dimmed ? 0.04 : 0.12 + w * 0.5 }];
+                    })}
+                    nodes={data.nodes.flatMap((n) => {
+                      const p = positions.get(n.id);
+                      if (!p) return [];
+                      const r = radiusOf(n);
+                      const color = n.type === "burner" ? "#dc2626" : CLUSTER_COLOR[n.cluster] ?? "#9ca3af";
+                      const isSel = selected?.id === n.id;
+                      const dimmed = activeClusters.size > 0 && !activeClusters.has(n.cluster);
+                      const showLabel =
+                        (data.metrics[n.id]?.betweenness ?? 0) / bMax > 0.1 || n.firCount > 0 || n.type === "burner";
+                      return [{
+                        id: n.id,
+                        x: p.x,
+                        y: p.y,
+                        radius: r,
+                        color,
+                        label: showLabel ? n.name : "",
+                        dimmed,
+                        selected: isSel,
+                        burner: n.type === "burner",
+                        onPointerDown: (e) => pointerDown(e, n),
+                      }];
+                    })}
+                  />
                 </g>
               </svg>
             )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -19,14 +19,21 @@ import {
 } from "lucide-react";
 
 export const WS_NAV = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/ask", label: "Ask Preksha", icon: MessagesSquare },
-  { href: "/network", label: "Network", icon: Share2 },
-  { href: "/cases", label: "Cases", icon: Scale },
-  { href: "/simulate", label: "Replay", icon: Clapperboard },
-  { href: "/suspects", label: "Suspects", icon: Users },
-  { href: "/evidence", label: "Evidence", icon: ShieldCheck },
-];
+  { href: "/dashboard", label: "Overview", icon: LayoutDashboard, group: "Workspace" },
+  { href: "/ask", label: "Ask Preksha", icon: MessagesSquare, group: "Workspace" },
+  { href: "/network", label: "Network", icon: Share2, group: "Workspace" },
+  { href: "/cases", label: "Cases", icon: Scale, group: "Workspace" },
+  { href: "/simulate", label: "Replay", icon: Clapperboard, group: "Workspace" },
+  { href: "/suspects", label: "Suspects", icon: Users, group: "Directory" },
+  { href: "/evidence", label: "Evidence", icon: ShieldCheck, group: "Directory" },
+] as const;
+
+const NAV_GROUPS = ["Workspace", "Directory"] as const;
+
+interface OverviewStats {
+  firs: number;
+  calls: number;
+}
 
 export function WsShell({
   title,
@@ -41,28 +48,49 @@ export function WsShell({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [stats, setStats] = useState<OverviewStats | null>(null);
+
+  useEffect(() => {
+    fetch("/api/overview")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.stats && setStats({ firs: d.stats.firs, calls: d.stats.calls }))
+      .catch(() => {});
+  }, []);
 
   const nav = (
-    <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
-      {WS_NAV.map((item) => {
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={() => setOpen(false)}
-            className={cn(
-              "flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-medium tracking-[-0.01em] transition-colors",
-              active
-                ? "bg-neutral-100 text-neutral-950"
-                : "text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900",
-            )}
-          >
-            <item.icon className={cn("size-4", active ? "text-neutral-950" : "text-neutral-400")} />
-            {item.label}
-          </Link>
-        );
-      })}
+    <nav className="flex-1 space-y-4 overflow-y-auto px-3">
+      {NAV_GROUPS.map((group) => (
+        <div key={group} className="space-y-0.5">
+          <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">{group}</p>
+          {WS_NAV.filter((item) => item.group === group).map((item) => {
+            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className={cn(
+                  "group relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-medium tracking-[-0.01em] transition-all duration-150",
+                  active
+                    ? "bg-neutral-950 text-white shadow-[0_1px_2px_rgba(16,15,25,0.08)]"
+                    : "text-neutral-500 hover:bg-neutral-100/80 hover:text-neutral-900",
+                )}
+              >
+                {active && (
+                  <span className="absolute left-0.5 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-[#c64e27]" />
+                )}
+                <item.icon
+                  className={cn(
+                    "size-4 transition-transform duration-150 group-hover:scale-110",
+                    active ? "text-white" : "text-neutral-400 group-hover:text-neutral-700",
+                  )}
+                />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      ))}
     </nav>
   );
 
@@ -83,10 +111,15 @@ export function WsShell({
       >
         <div className="flex items-center justify-between px-5 py-5">
           <Link href="/" className="group flex items-center gap-2.5">
-            <div className="flex size-7 items-center justify-center rounded-[9px] bg-neutral-950 text-[11px] font-bold text-white">
+            <div className="flex size-7 items-center justify-center rounded-[9px] bg-gradient-to-br from-neutral-800 to-neutral-950 text-[11px] font-bold text-white shadow-sm">
               P
             </div>
-            <span className="text-[14px] font-semibold tracking-[-0.02em] text-neutral-950">Preksha</span>
+            <span
+              className="text-[15px] font-semibold tracking-[-0.02em] text-neutral-950"
+              style={{ fontFamily: '"Alliance No.1", ui-sans-serif, sans-serif' }}
+            >
+              Preksha
+            </span>
             <ArrowUpRight className="size-3.5 text-neutral-300 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-neutral-500" />
           </Link>
           <button
@@ -97,8 +130,17 @@ export function WsShell({
           </button>
         </div>
         {nav}
-        <div className="border-t border-neutral-100 px-5 py-4 text-[10.5px] leading-[1.5] text-neutral-400">
-          Investigation corpus · 9 FIRs / 10,000 calls indexed
+        <div className="border-t border-neutral-100 px-5 py-4">
+          <div className="flex items-center gap-2 text-[10.5px] leading-[1.5] text-neutral-400">
+            <span className={cn("size-1.5 shrink-0 rounded-full", stats ? "bg-[#359462]" : "bg-neutral-300")} />
+            {stats ? (
+              <span className="tabular-nums">
+                {stats.firs} FIRs · {stats.calls.toLocaleString()} calls indexed
+              </span>
+            ) : (
+              "Loading corpus…"
+            )}
+          </div>
         </div>
       </aside>
 

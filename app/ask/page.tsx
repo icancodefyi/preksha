@@ -5,6 +5,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { WS_NAV } from "@/components/ws/ws-shell";
+import { MarkdownAnswer } from "@/components/MarkdownAnswer";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   ArrowUp,
@@ -207,9 +208,7 @@ function MessageBubble({ message, onFollowUp }: { message: ChatMessage; onFollow
         </div>
 
         <div className="space-y-5 px-5 py-5 sm:px-7 sm:py-6">
-          <p className="text-[17px] font-medium leading-[1.5] tracking-[-0.02em] text-neutral-950 sm:text-[18px]">
-            {a.answer}
-          </p>
+          <MarkdownAnswer text={a.answer} />
 
           {a.suggested.length > 0 && (
             <div className="space-y-2">
@@ -268,6 +267,22 @@ export default function AskPage() {
   const [liveTraceOpen, setLiveTraceOpen] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // "Chat with case" (from /cases and /cases/[caseId]) lands here as
+  // /ask?case=<id> — every question then goes through /api/ask?case=<id>,
+  // which the rag_service restricts to that case's tagged documents only
+  // (see rag_service/corpus.py). This never silently widens to global data.
+  const caseId = searchParams.get("case");
+  const [caseContext, setCaseContext] = useState<{ id: string; title: string } | null>(null);
+  useEffect(() => {
+    if (!caseId) {
+      setCaseContext(null);
+      return;
+    }
+    fetch(`/api/cases/${caseId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setCaseContext(d ? { id: d.id, title: d.title } : null));
+  }, [caseId]);
 
   const loadOverview = useCallback(async () => {
     try {
@@ -347,7 +362,9 @@ export default function AskPage() {
     setLiveTraceOpen(true);
 
     try {
-      const res = await fetch(`/api/ask?q=${encodeURIComponent(text)}`);
+      const qs = new URLSearchParams({ q: text });
+      if (caseId) qs.set("case", caseId);
+      const res = await fetch(`/api/ask?${qs.toString()}`);
       if (!res.ok) {
         const err = await res.text();
         setMessages((prev) => [
@@ -532,6 +549,18 @@ export default function AskPage() {
               <Menu className="size-4" />
             </button>
             <p className="text-[13px] font-medium tracking-[-0.01em] text-neutral-950">Ask Preksha</p>
+            {caseId && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-950 py-1 pl-2.5 pr-1 text-[11px] font-medium capitalize text-white">
+                {caseContext ? `Case: ${caseContext.title}` : "Loading case…"}
+                <Link
+                  href="/ask"
+                  title="Exit case scope — chat globally"
+                  className="flex size-4 items-center justify-center rounded-full text-neutral-300 hover:bg-white/10 hover:text-white"
+                >
+                  <X className="size-3" />
+                </Link>
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden items-center gap-2 text-[11px] font-medium text-neutral-400 sm:flex">
