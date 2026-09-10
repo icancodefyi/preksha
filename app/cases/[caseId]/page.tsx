@@ -278,11 +278,9 @@ function FilesTab({ kase }: { kase: CaseDetail }) {
               <div className="flex items-center gap-2">
                 <span className="rounded-md bg-neutral-950 px-2 py-1 text-[11px] font-semibold text-white">FIR {selected.fir_no}</span>
                 <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-neutral-400">{selected.category}</span>
-                {selected.idx === 4 && (
-                  <Link href="/simulate?fir=4" className="ml-1 inline-flex items-center gap-1.5 rounded-full bg-neutral-950 px-3 py-1 text-[11px] font-semibold text-white transition hover:bg-neutral-800">
-                    <Play className="size-3" /> Replay in 3D
-                  </Link>
-                )}
+                <Link href={`/simulate?fir=${selected.idx}`} className="ml-1 inline-flex items-center gap-1.5 rounded-full bg-neutral-950 px-3 py-1 text-[11px] font-semibold text-white transition hover:bg-neutral-800">
+                  <Play className="size-3" /> Replay in 3D
+                </Link>
               </div>
               <h2 className="mt-3 text-[22px] font-medium leading-tight tracking-[-0.02em] text-neutral-950">{selected.title}</h2>
               <p className="mt-1 text-[12px] tabular-nums text-neutral-400">

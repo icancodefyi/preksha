@@ -680,82 +680,99 @@ export default function SimScene({
       loadModel(url, h, (model) => towerGrp.add(model));
     });
 
-    // --- the store (exterior shell, hidden during the interior cut)
-    const store = (() => {
-      const g = new THREE.Group();
-      const f = facadeTextures(211, 3, 4);
-      const mat = new THREE.MeshStandardMaterial({
-        map: f.map,
-        emissive: 0xffcf96,
-        emissiveMap: f.emis,
-        emissiveIntensity: 1.15,
-        roughness: 0.7,
-      });
-      const body = new THREE.Mesh(new THREE.BoxGeometry(3.4, 3.4, 2.6), mat);
-      body.position.y = 1.7;
-      body.castShadow = true;
-      body.receiveShadow = true;
-      g.add(body);
-      const sign = new THREE.Mesh(
-        new THREE.BoxGeometry(2.6, 0.5, 0.2),
-        new THREE.MeshStandardMaterial({ color: 0xffd68c, emissive: 0xffd68c, emissiveIntensity: 1.4 }),
-      );
-      sign.position.set(0, 3.55, 1.35);
-      g.add(sign);
-      g.position.set(data.scene.x, 0, data.scene.z);
-      return g;
-    })();
-    scene.add(store);
-
-    // --- interior set (hidden until the robbery)
-    const room = makeRoom(data.scene.x, data.scene.z);
-    room.visible = false;
-    scene.add(room);
-
-    const worker1 = makePerson("worker", "#8fb0d8", "Store clerk");
-    worker1.group.visible = false;
-    room.add(worker1.group);
-    const worker2 = makePerson("worker2", "#8fb0d8", "Cashier");
-    worker2.group.visible = false;
-    room.add(worker2.group);
-
+    // --- bespoke Act 2 (FIR 1201/2023 only): store interior, staff, the three
+    // robbers' interior figures, and the getaway bikes. Every other case
+    // skips this block entirely — data.bespoke gates both creation here and
+    // every reference to these objects later in applyShot()/update().
+    let store!: THREE.Group;
+    let room!: THREE.Group;
+    let worker1!: Figure;
+    let worker2!: Figure;
     const interiorRobbers: Record<string, Figure> = {};
-    for (const id of ["mohammed", "ravi", "santosh"]) {
-      const a = actorById.get(id)!;
-      const f = makePerson(id, a.color, a.name);
-      f.group.visible = false;
-      room.add(f.group);
-      interiorRobbers[id] = f;
+    let bikeA!: { group: THREE.Group; plate: ReturnType<typeof makePlate> };
+    let bikeB!: ReturnType<typeof makeBike>;
+    let riderA!: THREE.Group;
+    let pillion!: THREE.Group;
+    let riderB!: THREE.Group;
+
+    if (data.bespoke) {
+      // --- the store (exterior shell, hidden during the interior cut)
+      store = (() => {
+        const g = new THREE.Group();
+        const f = facadeTextures(211, 3, 4);
+        const mat = new THREE.MeshStandardMaterial({
+          map: f.map,
+          emissive: 0xffcf96,
+          emissiveMap: f.emis,
+          emissiveIntensity: 1.15,
+          roughness: 0.7,
+        });
+        const body = new THREE.Mesh(new THREE.BoxGeometry(3.4, 3.4, 2.6), mat);
+        body.position.y = 1.7;
+        body.castShadow = true;
+        body.receiveShadow = true;
+        g.add(body);
+        const sign = new THREE.Mesh(
+          new THREE.BoxGeometry(2.6, 0.5, 0.2),
+          new THREE.MeshStandardMaterial({ color: 0xffd68c, emissive: 0xffd68c, emissiveIntensity: 1.4 }),
+        );
+        sign.position.set(0, 3.55, 1.35);
+        g.add(sign);
+        g.position.set(data.scene.x, 0, data.scene.z);
+        return g;
+      })();
+      scene.add(store);
+
+      // --- interior set (hidden until the robbery)
+      room = makeRoom(data.scene.x, data.scene.z);
+      room.visible = false;
+      scene.add(room);
+
+      worker1 = makePerson("worker", "#8fb0d8", "Store clerk");
+      worker1.group.visible = false;
+      room.add(worker1.group);
+      worker2 = makePerson("worker2", "#8fb0d8", "Cashier");
+      worker2.group.visible = false;
+      room.add(worker2.group);
+
+      for (const id of ["mohammed", "ravi", "santosh"]) {
+        const a = actorById.get(id);
+        if (!a) continue;
+        const f = makePerson(id, a.color, a.name);
+        f.group.visible = false;
+        room.add(f.group);
+        interiorRobbers[id] = f;
+      }
+
+      // escape motorcycles — GLB Suzuki (black Pulsar) for the exterior, procedural second bike
+      bikeA = {
+        group: new THREE.Group(),
+        plate: makePlate("MH 01 AB 1234", "MH 01 AB 1234 · BLACK PULSAR · FIR 1201/2023"),
+      };
+      bikeA.group.position.set(data.scene.x - 2.6, 0, data.scene.z + 1.2);
+      bikeA.group.rotation.y = 0.4;
+      bikeA.plate.group.position.set(0, 0.42, -0.86);
+      bikeA.group.add(bikeA.plate.group);
+      loadModel("/models/suzuki.glb", 1.0, (m) => bikeA.group.add(m));
+      bikeB = makeBike("#1a1420", "MH 01 CD 5678", null);
+      bikeB.group.position.set(data.scene.x + 2.4, 0, data.scene.z + 1.5);
+      bikeB.group.rotation.y = -0.5;
+      bikeB.group.scale.setScalar(0.9);
+      scene.add(bikeA.group, bikeB.group);
+
+      riderA = makeRider("#c07f1d"); // Mohammed
+      riderA.position.set(0, 0.42, 0.1);
+      riderA.visible = false;
+      bikeA.group.add(riderA);
+      pillion = makeRider("#16669e"); // Ravi
+      pillion.position.set(0, 0.45, -0.3);
+      pillion.visible = false;
+      bikeA.group.add(pillion);
+      riderB = makeRider("#5c4fc4"); // Santosh
+      riderB.position.set(0, 0.55, -0.05);
+      riderB.visible = false;
+      bikeB.group.add(riderB);
     }
-
-    // escape motorcycles — GLB Suzuki (black Pulsar) for the exterior, procedural second bike
-    const bikeA = {
-      group: new THREE.Group(),
-      plate: makePlate("MH 01 AB 1234", "MH 01 AB 1234 · BLACK PULSAR · FIR 1201/2023"),
-    };
-    bikeA.group.position.set(data.scene.x - 2.6, 0, data.scene.z + 1.2);
-    bikeA.group.rotation.y = 0.4;
-    bikeA.plate.group.position.set(0, 0.42, -0.86);
-    bikeA.group.add(bikeA.plate.group);
-    loadModel("/models/suzuki.glb", 1.0, (m) => bikeA.group.add(m));
-    const bikeB = makeBike("#1a1420", "MH 01 CD 5678", null);
-    bikeB.group.position.set(data.scene.x + 2.4, 0, data.scene.z + 1.5);
-    bikeB.group.rotation.y = -0.5;
-    bikeB.group.scale.setScalar(0.9);
-    scene.add(bikeA.group, bikeB.group);
-
-    const riderA = makeRider("#c07f1d"); // Mohammed
-    riderA.position.set(0, 0.42, 0.1);
-    riderA.visible = false;
-    bikeA.group.add(riderA);
-    const pillion = makeRider("#16669e"); // Ravi
-    pillion.position.set(0, 0.45, -0.3);
-    pillion.visible = false;
-    bikeA.group.add(pillion);
-    const riderB = makeRider("#5c4fc4"); // Santosh
-    riderB.position.set(0, 0.55, -0.05);
-    riderB.visible = false;
-    bikeB.group.add(riderB);
 
     // --- exterior people
     const figures: Record<string, Figure> = {};
@@ -786,7 +803,8 @@ export default function SimScene({
         b.castShadow = true;
         b.receiveShadow = true;
         financeGroup.add(b);
-        const lbl = makeLabel("RAJESH KUMAR · PUNE HQ", "#ff7a8a", { pill: true, size: 30 });
+        const hqText = data.bespoke ? "RAJESH KUMAR · PUNE HQ" : `${a.name.toUpperCase()} · ${a.role.toUpperCase()}`;
+        const lbl = makeLabel(hqText, "#ff7a8a", { pill: true, size: 30 });
         lbl.position.set(a.pos!.x, 3.1, a.pos!.z);
         financeGroup.add(lbl);
       } else if (a.kind === "entity") {
@@ -940,7 +958,21 @@ export default function SimScene({
     const ESCAPE = { pos: new THREE.Vector3(sx - 2, 6, sz + 15), tgt: new THREE.Vector3(sx, 1.2, sz + 2) };
     const CHASE = { pos: new THREE.Vector3(sx - 2.6, 2.4, sz + 2.5), tgt: new THREE.Vector3(sx - 2.6, 0.7, sz + 9) };
     const PLATE = { pos: new THREE.Vector3(sx - 2.6, 0.6, sz + 6.2), tgt: new THREE.Vector3(sx - 2.6, 0.5, sz + 8.6) };
-    const MONEY = { pos: new THREE.Vector3(-9, 17, 26), tgt: new THREE.Vector3(-2, 1.5, 0) };
+    // generic offense push-in — every case gets a dramatic close-up on the
+    // scene anchor without needing a hand-built interior set
+    const OFFENSE_PUSH = { pos: new THREE.Vector3(sx - 5, 6, sz + 9), tgt: new THREE.Vector3(sx, 1, sz) };
+    // generic money rig — frames wherever this case's off-scene (remote/
+    // entity) actors actually ended up, instead of FIR 1201/2023's fixed shot
+    const offSceneActors = data.actors.filter((a) => a.kind !== "member" && a.pos);
+    const moneyCenter = offSceneActors.length
+      ? {
+          x: offSceneActors.reduce((s, a) => s + a.pos!.x, 0) / offSceneActors.length,
+          z: offSceneActors.reduce((s, a) => s + a.pos!.z, 0) / offSceneActors.length,
+        }
+      : { x: sx, z: sz };
+    const MONEY = data.bespoke
+      ? { pos: new THREE.Vector3(-9, 17, 26), tgt: new THREE.Vector3(-2, 1.5, 0) }
+      : { pos: new THREE.Vector3(moneyCenter.x + 8, 14, moneyCenter.z + 20), tgt: new THREE.Vector3(moneyCenter.x, 1.5, moneyCenter.z) };
     const camTgt = EXTERIOR.tgt.clone();
 
     function interiorRig(t: number): { pos: THREE.Vector3; tgt: THREE.Vector3 } {
@@ -953,6 +985,13 @@ export default function SimScene({
     }
 
     function rigFor(t: number) {
+      if (!data.bespoke) {
+        if (t < 53.5) return EXTERIOR;
+        if (t < 64) return OFFENSE_PUSH;
+        if (t < 84) return ESCAPE;
+        if (t < 116) return MONEY;
+        return EXTERIOR;
+      }
       if (t < 53.5) return EXTERIOR;
       if (t < 64) return interiorRig(t);
       if (t < 73) return ESCAPE;
@@ -963,7 +1002,7 @@ export default function SimScene({
     }
 
     function isInterior(t: number) {
-      return t >= 53.5 && t < 64;
+      return data.bespoke && t >= 53.5 && t < 64;
     }
 
     // interior robber choreography (local coords relative to room center)
@@ -1003,7 +1042,7 @@ export default function SimScene({
 
     // per-shot isolation — interior is the only isolated shot; approach/escape/money share the full city
     function applyShot(t: number) {
-      const interior = t >= 53.5 && t < 64;
+      const interior = data.bespoke && t >= 53.5 && t < 64;
       const escape = t >= 64 && t < 84;
       const plate = t >= 80 && t < 84;
       const money = t >= 84 && t < 116;
@@ -1012,15 +1051,17 @@ export default function SimScene({
       cityGroup.visible = !interior;
       financeGroup.visible = wide || money;
       ground.visible = !interior;
-      store.visible = wide || escape;
-      room.visible = interior;
-      bikeA.group.visible = wide || escape;
-      bikeB.group.visible = wide || (escape && !plate);
+      if (data.bespoke) {
+        store.visible = wide || escape;
+        room.visible = interior;
+        bikeA.group.visible = wide || escape;
+        bikeB.group.visible = wide || (escape && !plate);
+      }
     }
 
     function update(t: number) {
       const interior = isInterior(t);
-      const escaping = t >= 64 && t < 84;
+      const escaping = data.bespoke && t >= 64 && t < 84;
       applyShot(t);
 
       onCall.clear();
@@ -1036,7 +1077,7 @@ export default function SimScene({
         if (a.kind === "entity") continue;
         const fig = figures[a.id];
         const p = actorPos(a.id, t);
-        const isRobber = a.id === "mohammed" || a.id === "ravi" || a.id === "santosh";
+        const isRobber = data.bespoke && (a.id === "mohammed" || a.id === "ravi" || a.id === "santosh");
         const hiddenByInterior = interior && (isRobber || a.id === "rajesh2");
         const hiddenByEscape = escaping && isRobber;
         fig.group.visible = p.visible && !hiddenByInterior && !hiddenByEscape;
@@ -1109,7 +1150,7 @@ export default function SimScene({
           f.leftArm.rotation.x = swing * 0.7;
           f.phone.visible = t >= 54 && t < 60;
         }
-      } else {
+      } else if (data.bespoke) {
         worker1.group.visible = false;
         worker2.group.visible = false;
         for (const id of ["mohammed", "ravi", "santosh"]) interiorRobbers[id].group.visible = false;
@@ -1183,7 +1224,7 @@ export default function SimScene({
           bikeA.plate.frame.visible = true;
           bikeA.plate.label.visible = true;
         }
-      } else if (t >= 84) {
+      } else if (t >= 84 && data.bespoke) {
         bikeA.plate.frame.visible = false;
         bikeA.plate.label.visible = false;
       }

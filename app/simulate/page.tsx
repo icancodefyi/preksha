@@ -2,8 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import SimScene, { type SimController } from "@/components/sim/SimScene";
 import type { SimData } from "@/lib/graph/simulation";
+
+interface FirSummary {
+  idx: number;
+  fir_no: string;
+  title: string;
+  incident_date: string;
+}
 
 const SPEEDS = [0.5, 1, 2];
 
@@ -34,20 +42,19 @@ const LANG_LABEL: Record<string, string> = { en: "EN", hi: "हिंदी", hi
 const LANG_ORDER: string[] = ["en", "hi", "hinglish"];
 
 export default function SimulatePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const firIdx = useMemo(() => {
+    const f = searchParams.get("fir");
+    return f && Number.isFinite(Number(f)) ? Number(f) : 4;
+  }, [searchParams]);
+  const initialT = useMemo(() => {
+    const t = searchParams.get("t");
+    return t && Number.isFinite(Number(t)) ? Number(t) : 0;
+  }, [searchParams]);
+
   const [data, setData] = useState<SimData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [firIdx] = useState<number>(() => {
-    if (typeof window === "undefined") return 4;
-    const sp = new URLSearchParams(window.location.search);
-    const f = sp.get("fir");
-    return f && Number.isFinite(Number(f)) ? Number(f) : 4;
-  });
-  const [initialT] = useState<number>(() => {
-    if (typeof window === "undefined") return 0;
-    const sp = new URLSearchParams(window.location.search);
-    const t = sp.get("t");
-    return t && Number.isFinite(Number(t)) ? Number(t) : 0;
-  });
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState(1);
   const [time, setTime] = useState(0);
@@ -57,11 +64,26 @@ export default function SimulatePage() {
     controller.current.autoCam = autoCam;
   }, [autoCam]);
   const emitRef = useRef(0);
+  const lastPlayedRef = useRef<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // case picker — every FIR now has a derivable replay, so let people jump
+  // between them instead of only ever landing on the flagship robbery
+  const [firList, setFirList] = useState<FirSummary[]>([]);
+  useEffect(() => {
+    fetch("/api/firs")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((list: FirSummary[]) => setFirList(list))
+      .catch(() => {});
+  }, []);
+  const goToCase = (idx: number) => router.push(`/simulate?fir=${idx}`);
 
   useEffect(() => {
     let alive = true;
     controller.current.t = 0;
     const t0 = initialT;
+    audioRef.current?.pause();
+    lastPlayedRef.current = null;
     fetch(`/api/simulation?fir=${firIdx}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("no simulation"))))
       .then((d: SimData) => {
@@ -69,6 +91,7 @@ export default function SimulatePage() {
         setError(null);
         setData(d);
         setTime(t0);
+        setPlaying(true);
         emitRef.current = t0;
         controller.current.t = t0;
       })
@@ -125,14 +148,17 @@ export default function SimulatePage() {
     setSpeed(SPEEDS[(i + 1) % SPEEDS.length]);
   };
 
-  // --- suspense narration (real voice via audio files, continuous)
+  // --- suspense narration — FIR 1201/2023 has produced 3-language voice-over
+  // tuned to its exact beats; every other case gets on-screen captions built
+  // straight from that case's own real narrative/summary instead (there's no
+  // recorded audio for it, and playing the robbery's narration over a
+  // different case's replay would be actively wrong).
+  const isBespoke = !!data?.bespoke;
   const [voiceOn, setVoiceOn] = useState(true);
   const [lang, setLang] = useState<string>("en");
   const [narrationMissing, setNarrationMissing] = useState(false);
-  const lastPlayedRef = useRef<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
-    if (!voiceOn || !playing) return;
+    if (!isBespoke || !voiceOn || !playing) return;
     let seg = NARRATION_SEGMENTS[0];
     for (const s of NARRATION_SEGMENTS) if (time >= s.t) seg = s;
     const playKey = `${lang}:${seg.key}`;
@@ -146,7 +172,7 @@ export default function SimulatePage() {
     a.onerror = () => setNarrationMissing(true);
     a.volume = 1;
     a.play().catch(() => {});
-  }, [time, voiceOn, playing, lang]);
+  }, [time, voiceOn, playing, lang, isBespoke]);
 
   useEffect(() => {
     return () => {
@@ -154,12 +180,35 @@ export default function SimulatePage() {
     };
   }, []);
 
-  // --- fade to black around the interior cut
+  // generic captions — derived from this case's own phases/events, keyed to
+  // the same phase boundaries every replay shares (0 premeditation, 54 the
+  // offense, 64 escape, 84 money trail)
+  const captions = useMemo(() => {
+    if (!data || isBespoke) return [];
+    const offense = data.events.find((e) => e.kind === "offense");
+    const hasMoney = data.events.some((e) => e.kind === "money");
+    const hasEscape = data.events.some((e) => e.kind !== "offense" && e.t >= 64 && e.t < 84);
+    return [
+      { t: 0, text: data.summary },
+      { t: 54, text: offense?.sub || data.title },
+      { t: 64, text: hasEscape ? "Communications continue in the hours after the incident." : "The trail goes quiet after the incident." },
+      { t: 84, text: hasMoney ? "Following the money trail." : "No further financial movement recorded." },
+      { t: 116, text: "Case file closed — cross-referenced against the wider network." },
+    ];
+  }, [data, isBespoke]);
+  const currentCaption = useMemo(() => {
+    if (!captions.length) return null;
+    let c = captions[0];
+    for (const seg of captions) if (time >= seg.t) c = seg;
+    return c.text;
+  }, [captions, time]);
+
+  // --- fade to black around the interior cut (bespoke Act 2 only)
   const fade = useMemo(() => {
-    if (!data) return 0;
+    if (!data || !isBespoke) return 0;
     const ramp = (t: number, c: number, half: number) => Math.max(0, Math.min(1, 1 - Math.abs(t - c) / half));
     return Math.max(ramp(time, 53.9, 0.9), ramp(time, 64.1, 0.9));
-  }, [data, time]);
+  }, [data, time, isBespoke]);
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#05060b] text-neutral-100">
@@ -195,9 +244,30 @@ export default function SimulatePage() {
             >
               ← Cases
             </Link>
-            <div className="rounded-full border border-white/10 bg-black/50 px-3 py-1.5 text-xs tracking-wide text-neutral-300 backdrop-blur">
-              FIR {data?.firNo ?? "…"}
-            </div>
+            {firList.length > 0 ? (
+              <select
+                value={firIdx}
+                onChange={(e) => goToCase(Number(e.target.value))}
+                title="Switch replay"
+                className="rounded-full border border-white/10 bg-black/50 px-3 py-1.5 text-xs tracking-wide text-neutral-300 backdrop-blur transition hover:border-white/30 hover:text-white focus:outline-none"
+              >
+                {firList.map((f) => (
+                  <option key={f.idx} value={f.idx} className="bg-neutral-900 text-neutral-200">
+                    FIR {f.fir_no} — {f.title.slice(0, 42)}
+                    {f.title.length > 42 ? "…" : ""}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="rounded-full border border-white/10 bg-black/50 px-3 py-1.5 text-xs tracking-wide text-neutral-300 backdrop-blur">
+                FIR {data?.firNo ?? "…"}
+              </div>
+            )}
+            {!isBespoke && data && (
+              <div className="rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1.5 text-[11px] font-medium text-sky-300 backdrop-blur">
+                Derived from real evidence
+              </div>
+            )}
           </div>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight drop-shadow">
             {data?.title ?? "Loading replay…"}
@@ -275,6 +345,16 @@ export default function SimulatePage() {
         </div>
       )}
 
+      {/* caption bar — recorded VO handles this for the bespoke case; every
+          other case gets its real-evidence summary as on-screen text */}
+      {!isBespoke && voiceOn && currentCaption && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-28 z-20 flex justify-center px-5">
+          <p className="max-w-2xl rounded-xl border border-white/10 bg-black/60 px-4 py-2 text-center text-sm leading-snug text-neutral-100 backdrop-blur">
+            {currentCaption}
+          </p>
+        </div>
+      )}
+
       {/* bottom controls */}
       <div className="absolute inset-x-0 bottom-0 z-20 p-5">
         <div className="mx-auto max-w-4xl rounded-2xl border border-white/10 bg-black/55 p-4 backdrop-blur">
@@ -318,7 +398,7 @@ export default function SimulatePage() {
               }}
               className="h-11 rounded-full border border-red-400/40 bg-red-500/10 px-4 text-sm font-semibold text-red-300 transition hover:bg-red-500/20"
             >
-              Skip to robbery →
+              {isBespoke ? "Skip to robbery →" : "Skip to the offense →"}
             </button>
             <button
               onClick={() => setVoiceOn((v) => !v)}
@@ -327,17 +407,19 @@ export default function SimulatePage() {
                   ? "border-white/30 bg-white/10 text-white"
                   : "border-white/15 text-neutral-400 hover:border-white/40"
               }`}
-              title="Toggle narration"
+              title={isBespoke ? "Toggle voice narration" : "Toggle on-screen captions"}
             >
-              {voiceOn ? "Narration on" : "Narration off"}
+              {voiceOn ? (isBespoke ? "Narration on" : "Captions on") : isBespoke ? "Narration off" : "Captions off"}
             </button>
-            <button
-              onClick={() => setLang((l) => LANG_ORDER[(LANG_ORDER.indexOf(l) + 1) % LANG_ORDER.length])}
-              className="h-11 rounded-full border border-white/15 px-4 text-sm font-medium text-neutral-200 transition hover:border-white/40"
-              title="Narration language"
-            >
-              {LANG_LABEL[lang] ?? "EN"}
-            </button>
+            {isBespoke && (
+              <button
+                onClick={() => setLang((l) => LANG_ORDER[(LANG_ORDER.indexOf(l) + 1) % LANG_ORDER.length])}
+                className="h-11 rounded-full border border-white/15 px-4 text-sm font-medium text-neutral-200 transition hover:border-white/40"
+                title="Narration language"
+              >
+                {LANG_LABEL[lang] ?? "EN"}
+              </button>
+            )}
             <button
               onClick={() => setAutoCam(true)}
               className={`h-11 rounded-full border px-4 text-sm font-medium transition ${
@@ -353,7 +435,7 @@ export default function SimulatePage() {
               {time.toFixed(1)}s / {data?.duration ?? 0}s
             </div>
           </div>
-          {narrationMissing && (
+          {narrationMissing && isBespoke && (
             <p className="mt-2 text-[11px] text-amber-300/80">
               Narration audio not found — add tracks to <span className="font-mono">public/audio/narration/</span>.
             </p>
