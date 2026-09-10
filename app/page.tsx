@@ -4,6 +4,7 @@ import Link from "next/link";
 import Nav from "./nav";
 import Carousel from "./carousel";
 import HorizontalFeed from "../components/intelligence/HorizontalFeed";
+import LogoTicker from "../components/LogoTicker";
 import { useEffect, useRef, type VideoHTMLAttributes, type ReactNode } from "react";
 
 function PlayOnView({
@@ -79,6 +80,9 @@ export default function Home() {
         </div>
         <div className="land-scroll-hint">Scroll to Explore</div>
       </header>
+
+      {/* ——— Cyber cell logos ——— */}
+      <LogoTicker />
 
       {/* ——— Intelligence Feed ——— */}
       <section className="land-section" style={{ paddingTop: 0, paddingBottom: 0 }}>
