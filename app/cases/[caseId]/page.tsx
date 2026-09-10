@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { WsShell } from "@/components/ws/ws-shell";
@@ -525,25 +525,44 @@ function NetworkTab({ kase }: { kase: CaseDetail }) {
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
   const [panning, setPanning] = useState(false);
   const panRef = useRef<{ x: number; y: number } | null>(null);
+  // Node positions are STATE, not a derived memo — dragging mutates this
+  // map directly. A memo would be recreated (and the drag lost) on every
+  // unrelated re-render; this mirrors app/network/page.tsx's proven pattern.
+  const [positions, setPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
+  const [dragId, setDragId] = useState<string | null>(null);
+  const dragRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Stable across renders (only changes if kase.suspectKeys does) — runs
+  // both inside useMemo (render) and directly in the fetch callback below
+  // (to seed positions without a second effect calling setState in its body).
+  const deriveSubgraph = useCallback(
+    (raw: NetworkData | null): { nodes: GraphNode[]; edges: GraphEdge[] } => {
+      if (!raw) return { nodes: [], edges: [] };
+      const core = new Set(kase.suspectKeys);
+      const coreIds = new Set(raw.nodes.filter((n) => core.has(n.key)).map((n) => n.id));
+      const touchingCore = raw.edges.filter((e) => coreIds.has(e.source) || coreIds.has(e.target));
+      const visibleIds = new Set<string>(coreIds);
+      for (const e of touchingCore) {
+        visibleIds.add(e.source);
+        visibleIds.add(e.target);
+      }
+      return { nodes: raw.nodes.filter((n) => visibleIds.has(n.id)), edges: touchingCore };
+    },
+    [kase.suspectKeys],
+  );
 
   useEffect(() => {
-    fetch("/api/network").then((r) => r.json()).then(setData);
+    fetch("/api/network")
+      .then((r) => r.json())
+      .then((raw: NetworkData) => {
+        setData(raw);
+        const sub = deriveSubgraph(raw);
+        setPositions(forceLayout(sub.nodes, sub.edges));
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const { nodes, edges, positions } = useMemo(() => {
-    if (!data) return { nodes: [] as GraphNode[], edges: [] as GraphEdge[], positions: new Map() };
-    const core = new Set(kase.suspectKeys);
-    const coreIds = new Set(data.nodes.filter((n) => core.has(n.key)).map((n) => n.id));
-    const touchingCore = data.edges.filter((e) => coreIds.has(e.source) || coreIds.has(e.target));
-    const visibleIds = new Set<string>(coreIds);
-    for (const e of touchingCore) {
-      visibleIds.add(e.source);
-      visibleIds.add(e.target);
-    }
-    const visibleNodes = data.nodes.filter((n) => visibleIds.has(n.id));
-    const pos = forceLayout(visibleNodes, touchingCore);
-    return { nodes: visibleNodes, edges: touchingCore, positions: pos };
-  }, [data, kase.suspectKeys]);
+  const { nodes, edges } = useMemo(() => deriveSubgraph(data), [data, deriveSubgraph]);
 
   const select = async (n: GraphNode) => {
     setSelected(n);
@@ -568,12 +587,38 @@ function NetworkTab({ kase }: { kase: CaseDetail }) {
     const center = rect ? { x: ((e.clientX - rect.left) / rect.width) * 1000, y: ((e.clientY - rect.top) / rect.height) * 620 } : undefined;
     zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15, center);
   };
+
+  // Node drag: stops propagation so a node click never also starts a
+  // background pan on the same pointer-down (that fight was why clicks felt
+  // broken before this fix).
+  const nodePointerDown = (e: React.PointerEvent, n: GraphNode) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    select(n);
+    setDragId(n.id);
+    dragRef.current = { x: e.clientX, y: e.clientY };
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+  };
   const bgPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     if (e.button !== 0) return;
     setPanning(true);
     panRef.current = { x: e.clientX, y: e.clientY };
   };
   const bgPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (dragId && dragRef.current) {
+      const dx = e.clientX - dragRef.current.x;
+      const dy = e.clientY - dragRef.current.y;
+      dragRef.current = { x: e.clientX, y: e.clientY };
+      const rect = svgRef.current?.getBoundingClientRect();
+      const pxToViewBox = rect ? 1000 / rect.width / view.scale : 1;
+      setPositions((prev) => {
+        const next = new Map(prev);
+        const p = next.get(dragId)!;
+        next.set(dragId, { x: p.x + dx * pxToViewBox, y: p.y + dy * pxToViewBox });
+        return next;
+      });
+      return;
+    }
     if (!panning || !panRef.current) return;
     const dx = e.clientX - panRef.current.x;
     const dy = e.clientY - panRef.current.y;
@@ -583,6 +628,8 @@ function NetworkTab({ kase }: { kase: CaseDetail }) {
   const bgPointerUp = () => {
     setPanning(false);
     panRef.current = null;
+    setDragId(null);
+    dragRef.current = null;
   };
 
   if (!data) {
@@ -645,7 +692,7 @@ function NetworkTab({ kase }: { kase: CaseDetail }) {
                     selected: selected?.id === n.id,
                     bold: inCase,
                     burner: n.type === "burner",
-                    onPointerDown: () => select(n),
+                    onPointerDown: (e) => nodePointerDown(e, n),
                   }];
                 })}
               />

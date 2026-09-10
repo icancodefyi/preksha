@@ -22,6 +22,7 @@ import {
   Landmark,
   CreditCard,
   FileText,
+  RotateCcw,
 } from "lucide-react";
 
 interface GraphNode {
@@ -89,8 +90,11 @@ export default function NetworkPage() {
   const [dossierLoading, setDossierLoading] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [simTarget, setSimTarget] = useState<string>("");
+  // Cumulative "removed" people for the disruption simulator — a Set so
+  // multiple people can be taken out at once, each individually restorable.
+  const [removedKeys, setRemovedKeys] = useState<Set<string>>(new Set());
   const [sim, setSim] = useState<{
-    name: string;
+    removedNames: string[];
     fragmentationPct: number;
     lccSizeBefore: number;
     lccSizeAfter: number;
@@ -241,6 +245,17 @@ export default function NetworkPage() {
 
   const radiusOf = (n: GraphNode) => 7 + 13 * ((data?.metrics[n.id]?.betweenness ?? 0) / bMax);
 
+  const visibleEdgeCount = useMemo(() => {
+    if (!data) return 0;
+    if (removedKeys.size === 0) return data.edges.length;
+    const nodeById = new Map(data.nodes.map((n) => [n.id, n]));
+    return data.edges.filter((e) => {
+      const s = nodeById.get(e.source);
+      const t = nodeById.get(e.target);
+      return !(s && removedKeys.has(s.key)) && !(t && removedKeys.has(t.key));
+    }).length;
+  }, [data, removedKeys]);
+
 
   const pointerDown = (e: React.PointerEvent, n: GraphNode) => {
     if (e.button !== 0) return;
@@ -269,16 +284,41 @@ export default function NetworkPage() {
   };
   const pointerUp = () => setDragId(null);
 
-  const runSimulation = async () => {
-    if (!simTarget) return;
+  const runSimulationFor = async (keys: Set<string>) => {
+    if (keys.size === 0) {
+      setSim(null);
+      return;
+    }
     setSimLoading(true);
     try {
-      const r = await fetch(`/api/network?remove=${simTarget}`);
+      const r = await fetch(`/api/network?remove=${[...keys].join(",")}`);
       const d = await r.json();
       setSim(d.disruption);
     } finally {
       setSimLoading(false);
     }
+  };
+
+  // "Remove" — adds the picked suspect to the cumulative removal set, drops
+  // them out of the rendered graph, and re-runs the fragmentation stats
+  // across everyone removed so far.
+  const removeFromNetwork = async (key: string) => {
+    if (!key || removedKeys.has(key)) return;
+    const next = new Set(removedKeys);
+    next.add(key);
+    setRemovedKeys(next);
+    setSimTarget("");
+    if (selected?.key === key) setSelected(null);
+    await runSimulationFor(next);
+  };
+
+  // "Add back" — restores one previously-removed person and refreshes the
+  // stats against whoever is still removed.
+  const restoreToNetwork = async (key: string) => {
+    const next = new Set(removedKeys);
+    next.delete(key);
+    setRemovedKeys(next);
+    await runSimulationFor(next);
   };
 
   return (
@@ -334,7 +374,11 @@ export default function NetworkPage() {
             <span className="ml-auto flex items-center gap-2">
               <span className="flex items-center gap-1.5 text-[11px] font-medium text-neutral-400">
                 <GitBranch className="size-3.5" />
-                {data ? `${data.nodes.length} nodes · ${data.edges.length} links` : "…"}
+                {data
+                  ? `${data.nodes.length - removedKeys.size} nodes · ${visibleEdgeCount} links${
+                      removedKeys.size > 0 ? ` · ${removedKeys.size} removed` : ""
+                    }`
+                  : "…"}
               </span>
               <span className="flex items-center gap-1 rounded-full border border-neutral-200 bg-white p-0.5">
                 <button type="button" onClick={() => zoomBy(1 / 1.25)} title="Zoom out" className="flex size-6 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100">
@@ -373,9 +417,10 @@ export default function NetworkPage() {
                       const a = positions.get(e.source);
                       const b = positions.get(e.target);
                       if (!a || !b) return [];
-                      const w = e.weight / Math.max(...data.edges.map((x) => x.weight), 1);
                       const srcNode = data.nodes.find((n) => n.id === e.source);
                       const tgtNode = data.nodes.find((n) => n.id === e.target);
+                      if ((srcNode && removedKeys.has(srcNode.key)) || (tgtNode && removedKeys.has(tgtNode.key))) return [];
+                      const w = e.weight / Math.max(...data.edges.map((x) => x.weight), 1);
                       const dimmed =
                         activeClusters.size > 0 &&
                         !(srcNode && activeClusters.has(srcNode.cluster)) &&
@@ -383,6 +428,7 @@ export default function NetworkPage() {
                       return [{ id: String(i), x1: a.x, y1: a.y, x2: b.x, y2: b.y, width: 0.7 + w * 2.4, opacity: dimmed ? 0.04 : 0.12 + w * 0.5 }];
                     })}
                     nodes={data.nodes.flatMap((n) => {
+                      if (removedKeys.has(n.key)) return [];
                       const p = positions.get(n.id);
                       if (!p) return [];
                       const r = radiusOf(n);
@@ -601,31 +647,29 @@ export default function NetworkPage() {
             <div className="border-b border-neutral-100 px-5 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Disruption simulator</p>
               <p className="mt-1 text-[11px] leading-[1.5] text-neutral-400">
-                Remove one suspect and see how far the network fragments.
+                Remove suspects from the graph and see how far the network fragments — add anyone back any time.
               </p>
             </div>
             <div className="space-y-3 px-5 py-4">
               <div className="flex gap-2">
                 <select
                   value={simTarget}
-                  onChange={(e) => {
-                    setSimTarget(e.target.value);
-                    setSim(null);
-                  }}
+                  onChange={(e) => setSimTarget(e.target.value)}
                   className="h-9 min-w-0 flex-1 rounded-xl border border-neutral-200 bg-white px-3 text-[12.5px] font-medium text-neutral-800 focus:border-neutral-400 focus:outline-none"
                 >
                   <option value="">Remove whom…</option>
                   {(data?.disruptionRanking ?? []).map((d) => {
                     const n = data?.nodes.find((x) => x.name === d.name);
-                    return n ? (
+                    if (!n || removedKeys.has(n.key)) return null;
+                    return (
                       <option key={n.key} value={n.key}>
                         {n.name} — {d.fragmentationPct}%
                       </option>
-                    ) : null;
+                    );
                   })}
                 </select>
                 <button
-                  onClick={runSimulation}
+                  onClick={() => removeFromNetwork(simTarget)}
                   disabled={!simTarget || simLoading}
                   className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-neutral-950 px-3.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-neutral-800 disabled:bg-neutral-200 disabled:text-neutral-400"
                 >
@@ -634,10 +678,34 @@ export default function NetworkPage() {
                 </button>
               </div>
 
+              {removedKeys.size > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {[...removedKeys].map((key) => {
+                    const n = data?.nodes.find((x) => x.key === key);
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => restoreToNetwork(key)}
+                        title="Add back to the network"
+                        className="group flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 py-1 pl-2.5 pr-2 text-[11px] font-medium text-neutral-500 transition-colors hover:border-[#c64e27]/40 hover:bg-[#c64e27]/5 hover:text-[#c64e27]"
+                      >
+                        {n?.name ?? key}
+                        <RotateCcw className="size-3 text-neutral-400 transition-colors group-hover:text-[#c64e27]" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               {sim && (
                 <div className="overflow-hidden rounded-2xl border border-neutral-200/70">
                   <div className="flex items-center justify-between bg-neutral-50 px-3.5 py-2.5">
-                    <span className="text-[12px] font-semibold text-neutral-800">{sim.name} removed</span>
+                    <span className="text-[12px] font-semibold text-neutral-800">
+                      {sim.removedNames.length > 1
+                        ? `${sim.removedNames.length} suspects removed`
+                        : `${sim.removedNames[0]} removed`}
+                    </span>
                     <span
                       className={cn(
                         "text-[15px] font-semibold tabular-nums",
@@ -652,7 +720,7 @@ export default function NetworkPage() {
                       { k: "Largest component before", v: `${sim.lccSizeBefore} members` },
                       { k: "Largest component after", v: `${sim.lccSizeAfter} members` },
                       { k: "Fragments after", v: `${sim.fragmentCountAfter}` },
-                      { k: "Remaining bridges", v: sim.remainingBridges.join(", ") },
+                      { k: "Remaining bridges", v: sim.remainingBridges.join(", ") || "—" },
                     ].map((row) => (
                       <div key={row.k} className="flex items-baseline justify-between gap-3 py-2.5">
                         <dt className="text-[11.5px] text-neutral-500">{row.k}</dt>

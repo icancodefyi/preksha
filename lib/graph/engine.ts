@@ -332,16 +332,18 @@ export function graphForDisruption(): { nodes: GraphNode[]; edges: GraphEdge[]; 
 
 export function simulateDisruption(
   graph: NetworkGraph,
-  removeKey: string,
+  removeKeys: string | string[],
 ): {
-  removeKey: string;
-  removedName: string | null;
+  removeKeys: string[];
+  removedNames: string[];
   lccSizeBefore: number;
   lccSizeAfter: number;
   fragmentCountAfter: number;
   fragmentationPct: number;
   remainingBridges: string[];
 } {
+  const removeSet = new Set(Array.isArray(removeKeys) ? removeKeys : [removeKeys]);
+
   const adj = new Map<string, Set<string>>();
   for (const n of graph.nodes) adj.set(n.id, new Set());
   for (const e of graph.edges) {
@@ -352,7 +354,7 @@ export function simulateDisruption(
   const nodes = graph.nodes;
   const survivorIds = new Set<string>();
   for (const n of nodes) {
-    if (n.key === removeKey) continue;
+    if (removeSet.has(n.key)) continue;
     survivorIds.add(n.id);
   }
 
@@ -402,19 +404,19 @@ export function simulateDisruption(
   }
 
   // remaining bridges (nodes with high betweenness among survivors)
-  const removedNode = graph.nodes.find((n) => n.key === removeKey);
+  const removedNames = graph.nodes.filter((n) => removeSet.has(n.key)).map((n) => n.name);
   const fragmentationPct =
     before > 0 ? Math.round(((before - after) / before) * 1000) / 10 : 0;
 
   const remainingBridges = graph.nodes
-    .filter((n) => n.key !== removeKey)
+    .filter((n) => !removeSet.has(n.key))
     .sort((a, b) => graph.metrics[b.id].betweenness - graph.metrics[a.id].betweenness)
     .slice(0, 3)
     .map((n) => n.name);
 
   return {
-    removeKey,
-    removedName: removedNode?.name ?? null,
+    removeKeys: [...removeSet],
+    removedNames,
     lccSizeBefore: before,
     lccSizeAfter: after,
     fragmentCountAfter: fragments,
