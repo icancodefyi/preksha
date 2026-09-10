@@ -103,7 +103,7 @@ function jitter(id: string, salt: number): { x: number; z: number } {
   return { x: (r(1) - 0.5) * 1.7, z: (r(2) - 0.5) * 1.7 };
 }
 
-function project(cityTowers: typeof towers): (lat: number, lng: number) => { x: number; z: number } {
+function project(cityTowers: typeof towers, scale = 1): (lat: number, lng: number) => { x: number; z: number } {
   const lats = cityTowers.map((t) => t.lat);
   const lngs = cityTowers.map((t) => t.lng);
   const minLat = Math.min(...lats);
@@ -113,21 +113,24 @@ function project(cityTowers: typeof towers): (lat: number, lng: number) => { x: 
   const spanLat = maxLat - minLat || 1;
   const spanLng = maxLng - minLng || 1;
   return (lat, lng) => ({
-    x: ((lng - minLng) / spanLng) * 24 - 12,
-    z: -((lat - minLat) / spanLat) * 16 + 8,
+    x: (((lng - minLng) / spanLng) * 24 - 12) * scale,
+    z: (-((lat - minLat) / spanLat) * 16 + 8) * scale,
   });
 }
 
-function projectTowers(cityTowers: typeof towers, sceneIds: Set<string>): SimTower[] {
-  const proj = project(cityTowers);
+// scale > 1 spreads towers further apart — used for the bespoke Dadar city
+// (10 towers were reading as visually cramped/overlapping); the generic
+// path never passes it, so every other case's layout is unchanged.
+function projectTowers(cityTowers: typeof towers, sceneIds: Set<string>, scale = 1): SimTower[] {
+  const proj = project(cityTowers, scale);
   return cityTowers.map((t, i) => {
     const p = proj(t.lat, t.lng);
     const j = jitter(t.cell_id, i);
     return {
       id: t.cell_id,
       name: t.tower,
-      x: p.x + j.x,
-      z: p.z + j.z,
+      x: p.x + j.x * scale,
+      z: p.z + j.z * scale,
       lat: t.lat,
       lng: t.lng,
       scene: sceneIds.has(t.cell_id),
@@ -552,7 +555,7 @@ function buildDadarSimulation(fir: FIRRecord): SimData {
   const mum = towers.filter((t) => t.cell_id.startsWith("MUM-"));
 
   const sceneIds = new Set<string>(fir.evidence?.towers ?? []);
-  const towersOut = projectTowers(mum, sceneIds);
+  const towersOut = projectTowers(mum, sceneIds, 1.6);
 
   const sceneA = towersOut.find((t) => t.id === "MUM-008") ?? towersOut[0];
   const sceneB = towersOut.find((t) => t.id === "MUM-009") ?? towersOut[1];

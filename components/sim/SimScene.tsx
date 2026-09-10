@@ -463,7 +463,15 @@ function makeBike(
 }
 
 // fully-enclosed interior room (no exterior bleed) with a doorway + backdrop
-function makeRoom(sx: number, sz: number): THREE.Group {
+interface RoomSet {
+  group: THREE.Group;
+  glassTops: THREE.Mesh[];
+  counterGems: THREE.Mesh[];
+  alarmLight: THREE.PointLight;
+  alarmBulb: THREE.Mesh;
+}
+
+function makeRoom(sx: number, sz: number): RoomSet {
   const g = new THREE.Group();
   const hw = 5.6;
   const hd = 4.6;
@@ -547,6 +555,8 @@ function makeRoom(sx: number, sz: number): THREE.Group {
     opacity: 0.35,
   });
   const gemColors = [0xffd54a, 0x7fd0ff, 0xff8aa0, 0x8affd0];
+  const glassTops: THREE.Mesh[] = [];
+  const counterGems: THREE.Mesh[] = [];
   for (const cx of [-1.9, 1.9]) {
     const counter = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.95, 1.0), counterMat);
     counter.position.set(cx, 0.5, -1.5);
@@ -556,6 +566,7 @@ function makeRoom(sx: number, sz: number): THREE.Group {
     const top = new THREE.Mesh(new THREE.BoxGeometry(2.65, 0.14, 1.05), glassMat);
     top.position.set(cx, 1.05, -1.5);
     g.add(top);
+    glassTops.push(top);
     for (let k = 0; k < 4; k++) {
       const gem = new THREE.Mesh(
         new THREE.SphereGeometry(0.09, 12, 12),
@@ -567,6 +578,29 @@ function makeRoom(sx: number, sz: number): THREE.Group {
         }),
       );
       gem.position.set(cx - 0.9 + k * 0.6, 1.14, -1.5);
+      g.add(gem);
+      counterGems.push(gem);
+    }
+  }
+
+  // side display shelves — flanking the doorway, so the room reads as a
+  // full shop rather than two counters floating in an empty box
+  for (const sxx of [-hw + 0.4, hw - 0.4]) {
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 2.4), counterMat);
+    shelf.position.set(sxx, 1.5, 1.6);
+    shelf.castShadow = true;
+    g.add(shelf);
+    for (let k = 0; k < 3; k++) {
+      const gem = new THREE.Mesh(
+        new THREE.SphereGeometry(0.07, 10, 10),
+        new THREE.MeshStandardMaterial({
+          color: gemColors[k % gemColors.length],
+          emissive: gemColors[k % gemColors.length],
+          emissiveIntensity: 1.3,
+          roughness: 0.2,
+        }),
+      );
+      gem.position.set(sxx, 1.58, 0.7 + k * 0.8);
       g.add(gem);
     }
   }
@@ -587,8 +621,34 @@ function makeRoom(sx: number, sz: number): THREE.Group {
   dial.position.set(0, 0.7, -hd + 0.56);
   g.add(dial);
 
+  // CCTV dome — ties back to the FIR's "CCTV captured partial faces" line
+  const dome = new THREE.Mesh(
+    new THREE.SphereGeometry(0.16, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshStandardMaterial({ color: 0x0c0e12, roughness: 0.15, metalness: 0.7 }),
+  );
+  dome.position.set(hw - 0.7, H - 0.05, hd - 0.9);
+  dome.rotation.x = Math.PI;
+  g.add(dome);
+  const domeLed = new THREE.Mesh(
+    new THREE.SphereGeometry(0.02, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xff2d2d }),
+  );
+  domeLed.position.set(hw - 0.7, H - 0.16, hd - 0.9);
+  g.add(domeLed);
+
+  // alarm light — off by default, pulses red once the robbery starts
+  const alarmLight = new THREE.PointLight(0xff2a2a, 0, 7, 2);
+  alarmLight.position.set(0, H - 0.4, 0.5);
+  g.add(alarmLight);
+  const alarmBulb = new THREE.Mesh(
+    new THREE.SphereGeometry(0.09, 10, 10),
+    new THREE.MeshBasicMaterial({ color: 0x5a0f0f }),
+  );
+  alarmBulb.position.set(-hw + 0.3, H - 0.3, hd - 0.3);
+  g.add(alarmBulb);
+
   g.position.set(sx, 0, sz);
-  return g;
+  return { group: g, glassTops, counterGems, alarmLight, alarmBulb };
 }
 
 export default function SimScene({
@@ -618,6 +678,7 @@ export default function SimScene({
     let raf = 0;
     let last = performance.now();
     let lastFired = -1;
+    let lastObservedT = controller.current.t;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -672,10 +733,12 @@ export default function SimScene({
     rim.position.set(-12, 8, -14);
     scene.add(rim);
     // interior lights (inside the room, so they only reach the room once it's sealed)
-    const roomLight = new THREE.PointLight(0xffd9a0, 90, 40, 2);
+    const roomAmbient = new THREE.AmbientLight(0xfff2df, 0);
+    scene.add(roomAmbient);
+    const roomLight = new THREE.PointLight(0xffd9a0, 260, 40, 1.5);
     roomLight.position.set(data.scene.x, 4.0, data.scene.z);
     scene.add(roomLight);
-    const roomFill = new THREE.PointLight(0xbfd4ff, 50, 40, 2);
+    const roomFill = new THREE.PointLight(0xbfd4ff, 140, 40, 1.5);
     roomFill.position.set(data.scene.x, 3.0, data.scene.z - 3);
     scene.add(roomFill);
 
@@ -785,9 +848,14 @@ export default function SimScene({
     // every reference to these objects later in applyShot()/update().
     let store!: THREE.Group;
     let room!: THREE.Group;
+    let roomGlassTops: THREE.Mesh[] = [];
+    let roomCounterGems: THREE.Mesh[] = [];
+    let roomAlarmLight!: THREE.PointLight;
+    let roomAlarmBulb!: THREE.Mesh;
     let worker1!: Figure;
     let worker2!: Figure;
     const interiorRobbers: Record<string, Figure> = {};
+    let lootBag!: THREE.Mesh;
     let bikeA!: { group: THREE.Group; plate: ReturnType<typeof makePlate> };
     let bikeB!: ReturnType<typeof makeBike>;
     let riderA!: THREE.Group;
@@ -823,15 +891,27 @@ export default function SimScene({
       scene.add(store);
 
       // --- interior set (hidden until the robbery)
-      room = makeRoom(data.scene.x, data.scene.z);
+      const roomSet = makeRoom(data.scene.x, data.scene.z);
+      room = roomSet.group;
+      roomGlassTops = roomSet.glassTops;
+      roomCounterGems = roomSet.counterGems;
+      roomAlarmLight = roomSet.alarmLight;
+      roomAlarmBulb = roomSet.alarmBulb;
       room.visible = false;
       scene.add(room);
 
+      // name-label sprites are sized for the wide exterior city shots (a
+      // few dozen world-units away) — at interior camera distances (a few
+      // units) they'd fill the whole frame, so hide them in here; the
+      // audience already has each suspect from the establishing shots and
+      // the evidence feed.
       worker1 = makePerson("worker", "#8fb0d8", "Store clerk");
       worker1.group.visible = false;
+      worker1.label.visible = false;
       room.add(worker1.group);
       worker2 = makePerson("worker2", "#8fb0d8", "Cashier");
       worker2.group.visible = false;
+      worker2.label.visible = false;
       room.add(worker2.group);
 
       for (const id of ["mohammed", "ravi", "santosh"]) {
@@ -839,9 +919,20 @@ export default function SimScene({
         if (!a) continue;
         const f = makePerson(id, a.color, a.name);
         f.group.visible = false;
+        f.label.visible = false;
         room.add(f.group);
         interiorRobbers[id] = f;
       }
+      // loot bag — appears in Mohammed's hand once the grab beat starts,
+      // stays with him through the flee (he's the one who later moves the
+      // proceeds to Nisha Traders in the money-trail beat)
+      lootBag = new THREE.Mesh(
+        new THREE.BoxGeometry(0.22, 0.26, 0.14),
+        new THREE.MeshStandardMaterial({ color: 0x1c1712, roughness: 0.8 }),
+      );
+      lootBag.position.set(0.16, -0.35, 0.05);
+      lootBag.visible = false;
+      interiorRobbers.mohammed?.leftArm.add(lootBag);
 
       // escape motorcycles — GLB Suzuki (black Pulsar) for the exterior, procedural second bike
       bikeA = {
@@ -871,6 +962,14 @@ export default function SimScene({
       riderB.position.set(0, 0.55, -0.05);
       riderB.visible = false;
       bikeB.group.add(riderB);
+
+      // street dressing — a small parked police presence across from the
+      // store, visible in the wide establishing/escape shots
+      const copsGroup = new THREE.Group();
+      copsGroup.position.set(data.scene.x + 5.5, 0, data.scene.z - 3.2);
+      copsGroup.rotation.y = -0.6;
+      scene.add(copsGroup);
+      loadModel("/models/cops_and_robbers.glb", 1.4, (m) => copsGroup.add(m));
     }
 
     // --- exterior people
@@ -1114,7 +1213,12 @@ export default function SimScene({
     // --- camera rigs
     const sx = data.scene.x;
     const sz = data.scene.z;
-    const EXTERIOR = { pos: new THREE.Vector3(-6, 14, 30), tgt: new THREE.Vector3(-1.5, 1.2, 0) };
+    // Dadar's city is projected 1.6x wider (see simulation.ts) so its 10
+    // towers stop reading as cramped/overlapping — pull the establishing
+    // shot back proportionally so it still frames the whole block.
+    const EXTERIOR = data.bespoke
+      ? { pos: new THREE.Vector3(-9, 19, 42), tgt: new THREE.Vector3(-1.5, 1.2, 0) }
+      : { pos: new THREE.Vector3(-6, 14, 30), tgt: new THREE.Vector3(-1.5, 1.2, 0) };
     // EXTERIOR alone used to hold t<53.5 (and the final 8s) completely
     // static — 40%+ of the runtime with zero camera movement, which reads
     // as slow/dead rather than cinematic. Orbit slowly around the same
@@ -1171,12 +1275,17 @@ export default function SimScene({
       : { pos: new THREE.Vector3(moneyCenter.x + 8, 14, moneyCenter.z + 20), tgt: new THREE.Vector3(moneyCenter.x, 1.5, moneyCenter.z) };
     const camTgt = EXTERIOR.tgt.clone();
 
+    // Six distinct beats across the same 53.5-64s window the narration was
+    // cut to (narration timing untouched) — burst in, fan out & draw, hold
+    // the staff at gunpoint, smash the counter, grab the loot, flee. Each
+    // gets its own camera angle instead of the previous four, so the cut
+    // pattern actually follows the story beat-by-beat.
     function interiorRig(t: number): { pos: THREE.Vector3; tgt: THREE.Vector3 } {
-      // multiple camera angles inside the sealed room
-      if (t < 56) return { pos: new THREE.Vector3(sx, 2.3, sz - 3.6), tgt: new THREE.Vector3(sx, 1.2, sz + 2.6) }; // wide, door
-      if (t < 58) return { pos: new THREE.Vector3(sx, 1.8, sz - 2.5), tgt: new THREE.Vector3(sx, 1.5, sz + 0.4) }; // staff POV
-      if (t < 60) return { pos: new THREE.Vector3(sx + 4.0, 2.0, sz - 0.4), tgt: new THREE.Vector3(sx, 1.4, sz - 1.2) }; // side, gunpoint
-      if (t < 62) return { pos: new THREE.Vector3(sx + 1.6, 1.8, sz + 0.6), tgt: new THREE.Vector3(sx, 1.5, sz + 0.1) }; // close on robbers
+      if (t < 54.3) return { pos: new THREE.Vector3(sx - 0.7, 1.55, sz + 5.3), tgt: new THREE.Vector3(sx, 1.3, sz + 1.0) }; // low, through the doorway opening (the door is only ±1.2 wide — anything further out is blocked by the wall either side of it)
+      if (t < 56.0) return { pos: new THREE.Vector3(sx, 1.75, sz - 2.3), tgt: new THREE.Vector3(sx, 1.5, sz + 0.7) }; // staff POV, robbers closing in
+      if (t < 58.0) return { pos: new THREE.Vector3(sx + 4.2, 1.9, sz - 0.2), tgt: new THREE.Vector3(sx, 1.4, sz + 0.3) }; // wide side, gunpoint two-shot
+      if (t < 59.5) return { pos: new THREE.Vector3(sx - 1.7, 1.05, sz - 1.5), tgt: new THREE.Vector3(sx, 0.95, sz - 0.6) }; // low close, the smash
+      if (t < 61.5) return { pos: new THREE.Vector3(sx - 2.8, 3.1, sz - 3.6), tgt: new THREE.Vector3(sx, 0.9, sz - 0.8) }; // elevated 3/4 angle over the grab — forgiving to frame, still reads as "looking down"
       return { pos: new THREE.Vector3(sx, 2.3, sz - 3.6), tgt: new THREE.Vector3(sx, 1.2, sz + 2.6) }; // wide, flee
     }
 
@@ -1201,26 +1310,36 @@ export default function SimScene({
       return data.bespoke && t >= 53.5 && t < 64;
     }
 
-    // interior robber choreography (local coords relative to room center)
-    const entryX: Record<string, number> = { mohammed: -0.8, ravi: 0, santosh: 0.8 };
+    // interior robber choreography (local coords relative to room center).
+    // Six beats matching interiorRig 1:1 — burst in (53.5-54.3), fan out &
+    // draw (54.3-56), hold at gunpoint (56-58), push in and smash the
+    // counter (58-59.5), grab the loot (59.5-61.5), flee (61.5-64). Every
+    // beat that moves uses the same eased lerp the rest of the scene does,
+    // so nothing snaps — a hold beat is a real hold, not a stall.
+    const doorX: Record<string, number> = { mohammed: -0.8, ravi: 0, santosh: 0.8 };
     const finalX: Record<string, number> = { mohammed: -2.1, ravi: 0, santosh: 2.1 };
 
     function robberInteriorPos(id: string, t: number): { x: number; z: number; rotY: number; vis: boolean } {
-      if (t < 54) return { x: entryX[id], z: 4.3, rotY: Math.PI, vis: false };
-      if (t < 56) {
-        const u = ease((t - 54) / 2);
-        return { x: lerp(entryX[id], finalX[id], u), z: lerp(4.3, 0.4, u), rotY: Math.PI, vis: true };
+      if (t < 53.5) return { x: doorX[id], z: 5.2, rotY: Math.PI, vis: false };
+      if (t < 54.3) {
+        const u = ease((t - 53.5) / 0.8);
+        return { x: doorX[id], z: lerp(5.2, 4.3, u), rotY: Math.PI, vis: true };
       }
-      if (t < 58) return { x: finalX[id], z: 0.4, rotY: Math.PI, vis: true };
-      if (t < 60) {
-        const u = (t - 58) / 2;
+      if (t < 56.0) {
+        const u = ease((t - 54.3) / 1.7);
+        return { x: lerp(doorX[id], finalX[id], u), z: lerp(4.3, 0.4, u), rotY: Math.PI, vis: true };
+      }
+      if (t < 58.0) return { x: finalX[id], z: 0.4, rotY: Math.PI, vis: true };
+      if (t < 59.5) {
+        const u = ease((t - 58.0) / 1.5);
         return { x: finalX[id], z: lerp(0.4, -0.5, u), rotY: Math.PI, vis: true };
       }
+      if (t < 61.5) return { x: finalX[id], z: -0.5, rotY: Math.PI, vis: true };
       if (t < 64) {
-        const u = (t - 60) / 4;
-        return { x: lerp(finalX[id], entryX[id], u), z: lerp(-0.5, 4.3, u), rotY: 0, vis: true };
+        const u = ease((t - 61.5) / 2.5);
+        return { x: lerp(finalX[id], doorX[id], u), z: lerp(-0.5, 4.3, u), rotY: 0, vis: true };
       }
-      return { x: entryX[id], z: 4.3, rotY: 0, vis: false };
+      return { x: doorX[id], z: 4.3, rotY: 0, vis: false };
     }
 
     function resize() {
@@ -1250,8 +1369,18 @@ export default function SimScene({
       if (data.bespoke) {
         store.visible = wide || escape;
         room.visible = interior;
+        roomAmbient.intensity = interior ? 0.9 : 0;
         bikeA.group.visible = wide || escape;
         bikeB.group.visible = wide || (escape && !plate);
+        (window as unknown as { __dbg: unknown }).__dbg = {
+          t, interior, roomVisible: room.visible,
+          camPos: camera.position.toArray().map((n) => +n.toFixed(2)),
+          camTgt: controls.target.toArray().map((n) => +n.toFixed(2)),
+          roomPos: room.position.toArray(),
+          roomLightPos: roomLight.position.toArray(),
+          roomLightIntensity: roomLight.intensity,
+          ambIntensity: roomAmbient.intensity,
+        };
       }
     }
 
@@ -1285,7 +1414,7 @@ export default function SimScene({
         const fig = figures[a.id];
         const p = actorPos(a.id, t);
         const isRobber = data.bespoke && (a.id === "mohammed" || a.id === "ravi" || a.id === "santosh");
-        const hiddenByInterior = interior && (isRobber || a.id === "rajesh2");
+        const hiddenByInterior = interior && (isRobber || a.id === "rajesh2" || a.id === "rajesh");
         const hiddenByEscape = escaping && isRobber;
         fig.group.visible = p.visible && !hiddenByInterior && !hiddenByEscape;
         if (!fig.group.visible) continue;
@@ -1316,17 +1445,19 @@ export default function SimScene({
 
       // --- interior staff + robbers
       if (interior) {
-        const threat = t >= 56 && t < 60;
+        // staff stay hands-up from the gunpoint hold through the grab,
+        // released only once the robbers turn to flee
+        const staffScared = t >= 56 && t < 61.5;
         worker1.group.visible = true;
         worker2.group.visible = true;
         worker1.group.position.set(-2.7, 0, -2.4);
         worker2.group.position.set(2.7, 0, -2.4);
         worker1.group.rotation.y = 0;
         worker2.group.rotation.y = 0;
-        const crouch = threat ? -0.25 : 0;
+        const crouch = staffScared ? -0.25 : 0;
         setBob(worker1, crouch);
         setBob(worker2, crouch);
-        if (threat) {
+        if (staffScared) {
           worker1.leftArm.rotation.x = -1.7;
           worker1.rightArm.rotation.x = -1.7;
           worker2.leftArm.rotation.x = -1.7;
@@ -1338,6 +1469,17 @@ export default function SimScene({
           worker2.rightArm.rotation.x = 0;
         }
 
+        // the smash (58s) breaks the glass and trips the alarm; gems are
+        // gone once the grab beat (59.5s) finishes scooping them
+        const smashed = t >= 58;
+        for (const gtop of roomGlassTops) gtop.visible = !smashed;
+        for (const gem of roomCounterGems) gem.visible = t < 59.5;
+        const alarmOn = smashed;
+        roomAlarmLight.intensity = alarmOn ? (1 + Math.sin(t * 14)) * 2.4 : 0;
+        (roomAlarmBulb.material as THREE.MeshBasicMaterial).color.setHex(
+          alarmOn && Math.sin(t * 14) > 0 ? 0xff2a2a : 0x5a0f0f,
+        );
+
         for (const id of ["mohammed", "ravi", "santosh"]) {
           const f = interiorRobbers[id];
           const p = robberInteriorPos(id, t);
@@ -1345,17 +1487,17 @@ export default function SimScene({
           if (!p.vis) continue;
           f.group.position.set(p.x, 0, p.z);
           f.group.rotation.y = p.rotY;
-          const moving = t < 56 || t >= 60;
+          const moving = t < 56.0 || (t >= 58.0 && t < 59.5) || t >= 61.5;
           if (moving) f.walkPhase += 0.2;
           setBob(f, moving ? Math.sin(f.walkPhase * 2) * 0.05 : Math.sin(t * 6) * 0.02);
           const swing = moving ? Math.sin(f.walkPhase) * 0.6 : 0;
           f.leftLeg.rotation.x = swing;
           f.rightLeg.rotation.x = -swing;
-          const holdingGun = t >= 54 && t < 60;
+          const holdingGun = t < 61.5;
           f.gun.visible = holdingGun;
           f.rightArm.rotation.x = holdingGun ? -0.95 : -swing * 0.7;
           f.leftArm.rotation.x = swing * 0.7;
-          f.phone.visible = t >= 54 && t < 60;
+          if (id === "mohammed") lootBag.visible = t >= 59.5;
         }
       } else if (data.bespoke) {
         worker1.group.visible = false;
@@ -1533,7 +1675,13 @@ export default function SimScene({
       last = now;
       const c = controller.current;
       const prev = c.t;
+      // detect an external seek (scrub bar, "skip to X") or a frame gap from
+      // a backgrounded/throttled tab — either shows up as c.t having moved
+      // far more than one frame's worth since we last observed it, here,
+      // *before* this frame's own play-advance folds into prev below.
+      const seeked = Math.abs(prev - lastObservedT) > 1.0;
       if (c.playing) c.t = Math.min(data.duration, c.t + dt * c.speed);
+      lastObservedT = c.t;
 
       if (c.t < prev - 0.5) lastFired = -1;
       for (const e of data.events) {
@@ -1547,7 +1695,13 @@ export default function SimScene({
       // cinematic camera (auto) vs manual orbit
       if (c.autoCam) {
         const rig = rigFor(c.t);
-        const k = 1 - Math.exp(-dt * 3.4);
+        // a scrub/seek (or a tab that was backgrounded and starved of real
+        // frames) can jump sim-time by seconds between two frames — lerping
+        // at a real-time rate would leave the camera stranded on the shot it
+        // had before the jump (e.g. a wide exterior aerial) for a long,
+        // visible stretch. Snap straight to the rig on a detected jump;
+        // only smooth continuous playback.
+        const k = seeked ? 1 : 1 - Math.exp(-dt * 3.4);
         camera.position.lerp(rig.pos, k);
         camTgt.lerp(rig.tgt, k);
         controls.target.copy(camTgt);
