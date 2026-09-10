@@ -35,5 +35,38 @@
   "active_case_link": {
     "what": "Burner 9890919293 (ransom device, Sept 2025) co-locates on towers PUN-003/008 with Rajesh-network devices; confirmed burn-after-use SIM.",
     "why_significant": "The today investigation plugs into 2 years of prior intelligence - the demo's core story."
+  },
+  "trafficking_recruitment_chain": {
+    "what": "Sunita Wagh (Khadki placement agency) and recruiter Meena Bhalerao source victims from Satara villages; victims are routed through Iqbal Sheikh's Kurla transit flat, serviced by forger Rashid Ansari.",
+    "why_significant": "Three separate roles (recruiter, transit handler, document forger) resolve into one trafficking pipeline across FIRs 0312/2024, 0288/2024 and 0301/2024 — CCTNS would file these as three unconnected cases.",
+    "firs": [
+      "0312/2024",
+      "0288/2024",
+      "0301/2024"
+    ]
+  },
+  "arms_supply_line": {
+    "what": "Irfan Qureshi's Nagpur interception (FIR 0475/2024) and Nilesh Bhosale's Thane recovery (FIR 0512/2024) share ballistic-matched weapons from the same consignment, brokered by Salman Pathan.",
+    "why_significant": "Serial/ballistic matching across a state-highway interception and a city recovery 11 days later confirms one active supply line rather than two isolated arms cases.",
+    "firs": [
+      "0475/2024",
+      "0512/2024"
+    ]
+  },
+  "ficn_delhi_pune_corridor": {
+    "what": "Zakir Ali's Delhi FICN seizure (FIR 0891/2024) and Dilip Ghorpade's Pune circulation bust (FIR 0812/2024) occur 12 days apart with a shared courier pattern (Waseem Khan) travelling by train.",
+    "why_significant": "A recurring ~10-12 day courier cadence between the two cities suggests a running circuit rather than a one-off consignment.",
+    "firs": [
+      "0891/2024",
+      "0812/2024"
+    ]
+  },
+  "extortion_to_land_grab": {
+    "what": "Yogesh Chavan's Nashik builder extortion (FIR 0104/2025) and Suresh Patil's forged sale deed in Thane (FIR 0128/2025) share phone contact, and a payment is routed as 'document-preparation fees' — extortion proceeds fund the paperwork to formalise the land grab.",
+    "why_significant": "Shows the same network's proceeds re-invested into the next stage of the crime (forged ownership), not just cashed out.",
+    "firs": [
+      "0104/2025",
+      "0128/2025"
+    ]
   }
 }

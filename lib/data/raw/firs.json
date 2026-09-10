@@ -586,5 +586,566 @@
     "related_firs": [
       6
     ]
+  },
+  {
+    "idx": 10,
+    "fir_no": "0312/2024",
+    "year": 2024,
+    "police_station": "Khadki PS, Pune",
+    "district": "Pune",
+    "state": "Maharashtra",
+    "incident_date": "2024-03-15",
+    "incident_time": "-",
+    "registered_date": "2024-03-16",
+    "title": "Missing woman - fake placement agency, trafficking suspected",
+    "category": "human-trafficking",
+    "sections": [
+      "370 IPC",
+      "370A IPC",
+      "120B IPC"
+    ],
+    "complainant": {
+      "name": "Vasant Bhalerao",
+      "phone": "9822300451",
+      "address": "Man Taluka, Satara",
+      "relation": "Father of victim"
+    },
+    "accused": [
+      {
+        "name": "Sunita Wagh",
+        "alias": "Madam",
+        "description": "Operates 'Suraksha Manpower Solutions' placement agency, last contact with victim",
+        "status": "investigated"
+      }
+    ],
+    "narrative": "On 15.03.2024 complainant Vasant Bhalerao of Man taluka, Satara reported his daughter (22) missing after she left home to join a housemaid placement arranged through an agent identified as Sunita Wagh, who runs 'Suraksha Manpower Solutions' out of an office in Khadki, Pune. The victim's phone has been switched off since 14.03.2024. Preliminary inquiry revealed the agency promised a domestic-work placement in Mumbai with an advance 'training fee' of Rs 15,000 collected from the family. Neighbours named a recruiter known locally as 'Tai' who arranges similar placements from villages in Satara and Solapur districts. CDR of Sunita Wagh's registered number shows repeated contact with a Mumbai number in the 48 hours before the victim's phone went dark. Sections 370, 370A and 120B IPC applied; women & child cell notified.",
+    "entities": {
+      "persons": [
+        "Sunita Wagh",
+        "Meena Bhalerao"
+      ],
+      "phones": [
+        "9822300451",
+        "7020155432",
+        "7020288761"
+      ],
+      "accounts": [],
+      "places": [
+        "Khadki, Pune",
+        "Man, Satara"
+      ]
+    },
+    "evidence": {
+      "phones": [
+        "7020155432",
+        "7020288761"
+      ]
+    },
+    "related_firs": [
+      11,
+      12
+    ]
+  },
+  {
+    "idx": 11,
+    "fir_no": "0288/2024",
+    "year": 2024,
+    "police_station": "Kurla PS, Mumbai",
+    "district": "Mumbai",
+    "state": "Maharashtra",
+    "incident_date": "2024-03-25",
+    "incident_time": "16:20",
+    "registered_date": "2024-03-25",
+    "title": "Trafficking transit flat raided - 5 women rescued, 2 accused held",
+    "category": "human-trafficking",
+    "sections": [
+      "370 IPC",
+      "370A IPC",
+      "342 IPC",
+      "120B IPC"
+    ],
+    "complainant": {
+      "name": "State of Maharashtra (PSI Vaishali Kadam)",
+      "phone": null,
+      "address": "Kurla PS, Mumbai",
+      "relation": "Police"
+    },
+    "accused": [
+      {
+        "name": "Iqbal Sheikh",
+        "alias": "Munna",
+        "description": "Operated the Kurla transit flat, arrested",
+        "status": "arrested"
+      },
+      {
+        "name": "Rashid Ansari",
+        "alias": "Documents Rashid",
+        "description": "Found with forged passports and visa stickers",
+        "status": "arrested"
+      }
+    ],
+    "narrative": "Acting on a tip generated from FIR 0312/2024 Khadki, a joint team raided a flat in Kurla, Mumbai on 25.03.2024 at 16:20 hrs and rescued five women aged 19-26, including the missing woman from Satara. Accused Iqbal Sheikh, who managed the flat as a transit point before onward 'placement', was arrested along with Rashid Ansari, found in possession of forged Emirates visa stickers and passports bearing altered photographs. Victims stated they were told they would be flown to Dubai for domestic work but had their phones and documents confiscated on arrival. Call records show Sunita Wagh of the Khadki case in regular contact with Iqbal Sheikh's number in the weeks preceding each batch's arrival. The agency's registered office was found to be a rented cabin with no valid manpower-export licence.",
+    "entities": {
+      "persons": [
+        "Iqbal Sheikh",
+        "Rashid Ansari"
+      ],
+      "phones": [
+        "7020399145",
+        "7020411987"
+      ],
+      "accounts": [],
+      "places": [
+        "Kurla, Mumbai"
+      ]
+    },
+    "evidence": {
+      "phones": [
+        "7020399145",
+        "7020411987",
+        "7020155432"
+      ],
+      "documents": [
+        "5 forged passports",
+        "12 counterfeit visa stickers"
+      ],
+      "towers": [
+        "MUM-006"
+      ]
+    },
+    "related_firs": [
+      10,
+      12
+    ]
+  },
+  {
+    "idx": 12,
+    "fir_no": "0301/2024",
+    "year": 2024,
+    "police_station": "DCB CID, Mumbai",
+    "district": "Mumbai",
+    "state": "Maharashtra",
+    "incident_date": "2024-04-02",
+    "incident_time": "-",
+    "registered_date": "2024-04-03",
+    "title": "Forged passport racket linked to trafficking flat - printing set-up seized",
+    "category": "document-fraud",
+    "sections": [
+      "420 IPC",
+      "467 IPC",
+      "468 IPC",
+      "471 IPC"
+    ],
+    "complainant": {
+      "name": "State of Maharashtra (Insp. Ganesh Kore, DCB)",
+      "phone": null,
+      "address": "DCB CID, Mumbai",
+      "relation": "Police"
+    },
+    "accused": [
+      {
+        "name": "Rashid Ansari",
+        "alias": "Documents Rashid",
+        "description": "Follow-up recovery from associate's premises: laminator, blank passport stock, visa stickers",
+        "status": "arrested"
+      }
+    ],
+    "narrative": "Follow-up investigation from FIR 0288/2024 Kurla traced document supplies to a room in Kalina rented in the name of an associate of Rashid Ansari. A laminating unit, holographic overlay sheets, 40 blank passport-booklet pages and a stock of counterfeit UAE visa stickers were recovered. Devices seized show communication with a Delhi-based supplier of security paper (unidentified, number untraceable). This establishes the trafficking flat in FIR 0288/2024 was serviced by a dedicated document-forgery cell rather than an ad-hoc arrangement. Sections 420, 467, 468 and 471 IPC applied.",
+    "entities": {
+      "persons": [
+        "Rashid Ansari"
+      ],
+      "phones": [
+        "7020411987"
+      ],
+      "accounts": [],
+      "places": [
+        "Kalina, Mumbai"
+      ]
+    },
+    "evidence": {
+      "phones": [
+        "7020411987"
+      ],
+      "documents": [
+        "laminator",
+        "blank passport stock",
+        "UAE visa stickers"
+      ]
+    },
+    "related_firs": [
+      11
+    ]
+  },
+  {
+    "idx": 13,
+    "fir_no": "0475/2024",
+    "year": 2024,
+    "police_station": "MIDC PS, Nagpur",
+    "district": "Nagpur",
+    "state": "Maharashtra",
+    "incident_date": "2024-05-08",
+    "incident_time": "04:30",
+    "registered_date": "2024-05-08",
+    "title": "Arms interception - 6 country-made pistols recovered from truck cargo",
+    "category": "arms-trafficking",
+    "sections": [
+      "25(1B)(a) Arms Act",
+      "25(1AA) Arms Act",
+      "120B IPC"
+    ],
+    "complainant": {
+      "name": "State of Maharashtra (PSI Vinod Ingle)",
+      "phone": null,
+      "address": "MIDC PS, Nagpur",
+      "relation": "Police"
+    },
+    "accused": [
+      {
+        "name": "Irfan Qureshi",
+        "alias": "Munna Bihar",
+        "description": "Truck cleaner, arms concealed in false cargo floor",
+        "status": "arrested"
+      }
+    ],
+    "narrative": "At 04:30 hrs on 08.05.2024 a routine check of a goods truck at the MIDC Nagpur checkpoint recovered 6 country-made pistols and 40 rounds of ammunition concealed in a false floor of the cargo bed. The truck's cleaner, identified as Irfan Qureshi, stated the consignment originated from a contact in Munger, Bihar and was destined for a buyer in Thane arranged through a Nagpur-based broker. Phone extraction shows a spike of calls between the accused and a number registered to Salman Pathan (Nagpur) in the 72 hours before interception. The truck driver was released; investigation continues into the broker network. Weapons sent for ballistic and manufacture-mark analysis.",
+    "entities": {
+      "persons": [
+        "Irfan Qureshi",
+        "Salman Pathan"
+      ],
+      "phones": [
+        "7311022456",
+        "7311144789"
+      ],
+      "accounts": [],
+      "places": [
+        "MIDC, Nagpur"
+      ]
+    },
+    "evidence": {
+      "phones": [
+        "7311022456",
+        "7311144789"
+      ],
+      "weapons": [
+        "6 country-made pistols",
+        "40 rounds ammunition"
+      ],
+      "towers": [
+        "NAG-002"
+      ]
+    },
+    "related_firs": [
+      14
+    ]
+  },
+  {
+    "idx": 14,
+    "fir_no": "0512/2024",
+    "year": 2024,
+    "police_station": "Vartak Nagar PS, Thane",
+    "district": "Thane",
+    "state": "Maharashtra",
+    "incident_date": "2024-05-19",
+    "incident_time": "21:50",
+    "registered_date": "2024-05-19",
+    "title": "2 pistols recovered from local gang member, serial match to Nagpur seizure",
+    "category": "arms-trafficking",
+    "sections": [
+      "25(1B)(a) Arms Act",
+      "120B IPC"
+    ],
+    "complainant": {
+      "name": "State of Maharashtra (PSI Bhagwat Salvi)",
+      "phone": null,
+      "address": "Vartak Nagar PS, Thane",
+      "relation": "Police"
+    },
+    "accused": [
+      {
+        "name": "Nilesh Bhosale",
+        "alias": "Nilya",
+        "description": "Found with 2 pistols during a routine vehicle check",
+        "status": "arrested"
+      }
+    ],
+    "narrative": "On 19.05.2024 at 21:50 hrs a routine vehicle check in Vartak Nagar, Thane recovered 2 country-made pistols from accused Nilesh Bhosale, a known local enforcer. Ballistic markings on both weapons matched the batch recovered in FIR 0475/2024 MIDC Nagpur, confirming they originated from the same consignment intercepted 11 days earlier. Call records show Nilesh Bhosale in contact with Salman Pathan's number two days before this recovery, consistent with a second, smaller delivery reaching Thane despite the Nagpur interception. Investigation into broker Salman Pathan and the interstate source is ongoing.",
+    "entities": {
+      "persons": [
+        "Nilesh Bhosale",
+        "Salman Pathan"
+      ],
+      "phones": [
+        "7311255312",
+        "7311144789"
+      ],
+      "accounts": [],
+      "places": [
+        "Vartak Nagar, Thane"
+      ]
+    },
+    "evidence": {
+      "phones": [
+        "7311255312",
+        "7311144789"
+      ],
+      "weapons": [
+        "2 country-made pistols (ballistic match to FIR 0475/2024)"
+      ]
+    },
+    "related_firs": [
+      13
+    ]
+  },
+  {
+    "idx": 15,
+    "fir_no": "0891/2024",
+    "year": 2024,
+    "police_station": "Special Cell (Counterfeit Currency Wing), New Delhi",
+    "district": "New Delhi",
+    "state": "Delhi",
+    "incident_date": "2024-10-02",
+    "incident_time": "-",
+    "registered_date": "2024-10-03",
+    "title": "FICN seizure - Rs 9.4 lakh face value fake currency, 1 arrested",
+    "category": "counterfeit-currency",
+    "sections": [
+      "489B IPC",
+      "489C IPC",
+      "120B IPC"
+    ],
+    "complainant": {
+      "name": "State (through I/C Special Cell)",
+      "phone": null,
+      "address": "Special Cell, New Delhi",
+      "relation": "Government"
+    },
+    "accused": [
+      {
+        "name": "Zakir Ali",
+        "alias": "Zak",
+        "description": "Held with FICN bundles in Rs 500 denomination, source handler",
+        "status": "arrested"
+      }
+    ],
+    "narrative": "Delhi Special Cell's Counterfeit Currency Wing intercepted a courier on 02.10.2024 carrying fake Indian currency notes (FICN) with a face value of Rs 9.4 lakh in Rs 500 denomination, of exceptional print quality suggesting cross-border origin. The courier identified the handler as Zakir Ali, who was subsequently arrested. Phone analysis shows Zakir Ali in regular contact with a number that travels between Delhi and Pune approximately every 10-12 days, consistent with a courier run. Sections 489B and 489C IPC (counterfeiting currency notes, using as genuine) applied along with 120B IPC for the wider conspiracy.",
+    "entities": {
+      "persons": [
+        "Zakir Ali"
+      ],
+      "phones": [
+        "7625566234",
+        "7625677845"
+      ],
+      "accounts": [],
+      "places": [
+        "New Delhi"
+      ]
+    },
+    "evidence": {
+      "phones": [
+        "7625566234",
+        "7625677845"
+      ],
+      "currency": [
+        "FICN Rs 9.4 lakh face value, Rs 500 denomination"
+      ],
+      "towers": [
+        "DEL-003"
+      ]
+    },
+    "related_firs": [
+      16
+    ]
+  },
+  {
+    "idx": 16,
+    "fir_no": "0812/2024",
+    "year": 2024,
+    "police_station": "Swargate PS, Pune",
+    "district": "Pune",
+    "state": "Maharashtra",
+    "incident_date": "2024-10-14",
+    "incident_time": "12:40",
+    "registered_date": "2024-10-14",
+    "title": "FICN circulation - Pune shopkeeper caught passing fake notes, Rs 1.6 lakh recovered",
+    "category": "counterfeit-currency",
+    "sections": [
+      "489B IPC",
+      "489C IPC"
+    ],
+    "complainant": {
+      "name": "Sadanand More (bank cashier)",
+      "phone": "9860277401",
+      "address": "Swargate, Pune",
+      "relation": "Complainant / bank staff"
+    },
+    "accused": [
+      {
+        "name": "Dilip Ghorpade",
+        "alias": "DG",
+        "description": "Attempted to deposit fake notes, cashier flagged serial repeats",
+        "status": "arrested"
+      }
+    ],
+    "narrative": "On 14.10.2024 at about 12:40 hrs bank staff at a Swargate branch flagged a cash deposit by accused Dilip Ghorpade after noticing repeated serial number patterns; verification confirmed Rs 1.6 lakh in counterfeit Rs 500 notes. Dilip Ghorpade, previously known to local police for petty hawala work, stated the notes were received from a courier arriving by train from Delhi in exchange for genuine currency at a discounted rate — a pattern matching FIR 0891/2024 Special Cell Delhi where accused Zakir Ali was arrested twelve days earlier. Train ticket and CDR records place a number associated with Dilip Ghorpade's known associate in Pune Junction on the same afternoon as arrivals from Delhi on the relevant dates. Sections 489B and 489C IPC applied.",
+    "entities": {
+      "persons": [
+        "Dilip Ghorpade"
+      ],
+      "phones": [
+        "9860277401",
+        "7625788321",
+        "7625677845"
+      ],
+      "accounts": [],
+      "places": [
+        "Swargate, Pune"
+      ]
+    },
+    "evidence": {
+      "phones": [
+        "7625788321",
+        "7625677845"
+      ],
+      "currency": [
+        "FICN Rs 1.6 lakh recovered"
+      ],
+      "towers": [
+        "PUN-006"
+      ]
+    },
+    "related_firs": [
+      15
+    ]
+  },
+  {
+    "idx": 17,
+    "fir_no": "0104/2025",
+    "year": 2025,
+    "police_station": "Nashik Road PS, Nashik",
+    "district": "Nashik",
+    "state": "Maharashtra",
+    "incident_date": "2025-01-20",
+    "incident_time": "11:15",
+    "registered_date": "2025-01-21",
+    "title": "Builder extortion - Rs 25 lakh 'protection money' demand, threats to halt construction",
+    "category": "extortion",
+    "sections": [
+      "384 IPC",
+      "506 IPC",
+      "120B IPC"
+    ],
+    "complainant": {
+      "name": "Prashant Oswal",
+      "phone": "9822910034",
+      "address": "College Road, Nashik",
+      "relation": "Complainant / builder"
+    },
+    "accused": [
+      {
+        "name": "Yogesh Chavan",
+        "alias": "Bhau",
+        "description": "Demanded protection money over phone, threatened to stall the site",
+        "status": "investigated"
+      },
+      {
+        "name": "Mangesh Jadhav",
+        "alias": "Manya",
+        "description": "Visited site in person to reinforce the threat",
+        "status": "investigated"
+      }
+    ],
+    "narrative": "Complainant Prashant Oswal, a builder executing a residential project on College Road Nashik, reported receiving repeated calls from 20.01.2025 demanding Rs 25 lakh 'protection money' failing which construction machinery would be damaged and labourers driven off site. Two days after the first call a man later identified as Mangesh Jadhav visited the site in person and repeated the threat, naming 'Bhau' (identified as Yogesh Chavan, a locally known extortion operator with prior history) as the person to be paid. Under pressure the complainant transferred a partial amount of Rs 5,00,000 on 25.01.2025 before deciding to approach police with the balance demand outstanding. CDR of the calling number shows it registered to Yogesh Chavan and frequent contact with Mangesh Jadhav in the days surrounding the site visit. Sections 384 (extortion), 506 (criminal intimidation) and 120B IPC applied.",
+    "entities": {
+      "persons": [
+        "Yogesh Chavan",
+        "Mangesh Jadhav"
+      ],
+      "phones": [
+        "9822910034",
+        "7896011234",
+        "7896122456"
+      ],
+      "accounts": [],
+      "places": [
+        "College Road, Nashik"
+      ]
+    },
+    "evidence": {
+      "phones": [
+        "7896011234",
+        "7896122456"
+      ],
+      "towers": [
+        "NAS-003"
+      ]
+    },
+    "related_firs": [
+      18
+    ]
+  },
+  {
+    "idx": 18,
+    "fir_no": "0128/2025",
+    "year": 2025,
+    "police_station": "Manpada PS, Thane",
+    "district": "Thane",
+    "state": "Maharashtra",
+    "incident_date": "2025-02-03",
+    "incident_time": "-",
+    "registered_date": "2025-02-04",
+    "title": "Forged sale deed racket - fake ownership documents used to stake false land claims",
+    "category": "document-fraud",
+    "sections": [
+      "420 IPC",
+      "465 IPC",
+      "467 IPC",
+      "471 IPC"
+    ],
+    "complainant": {
+      "name": "Vandana Kelkar",
+      "phone": "9833400221",
+      "address": "Manpada, Thane",
+      "relation": "Complainant / land owner"
+    },
+    "accused": [
+      {
+        "name": "Suresh Patil",
+        "alias": "Vakil",
+        "description": "Prepared forged sale deed and impersonated a notary to stake a false claim on complainant's plot",
+        "status": "investigated"
+      }
+    ],
+    "narrative": "Complainant Vandana Kelkar found a forged sale deed for her family plot in Manpada, Thane registered using fabricated notary stamps, apparently prepared to support a pressure campaign to sell at undervalue. Investigation identified Suresh Patil, known locally as 'Vakil' despite having no valid legal enrolment, as the document preparer. Records tie Suresh Patil's phone to sustained contact with Yogesh Chavan and Mangesh Jadhav of the Nashik extortion case (FIR 0104/2025), and financial records show a share of extorted proceeds routed toward document-preparation 'fees' — indicating the same network uses forged paperwork to formalise land grabs once a builder or owner is pressured into selling. Sections 420, 465, 467 and 471 IPC applied.",
+    "entities": {
+      "persons": [
+        "Suresh Patil",
+        "Yogesh Chavan"
+      ],
+      "phones": [
+        "9833400221",
+        "7896233789",
+        "7896011234"
+      ],
+      "accounts": [],
+      "places": [
+        "Manpada, Thane"
+      ]
+    },
+    "evidence": {
+      "phones": [
+        "7896233789",
+        "7896011234"
+      ],
+      "documents": [
+        "forged sale deed",
+        "fake notary stamp"
+      ]
+    },
+    "related_firs": [
+      17
+    ]
   }
 ]

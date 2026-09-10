@@ -1,4 +1,14 @@
-export type Cluster = "core" | "drugs" | "finance" | "execution" | "gambling" | "unknown";
+export type Cluster =
+  | "core"
+  | "drugs"
+  | "finance"
+  | "execution"
+  | "gambling"
+  | "trafficking"
+  | "arms"
+  | "counterfeit"
+  | "extortion"
+  | "unknown";
 
 export interface NetworkMember {
   key: string;

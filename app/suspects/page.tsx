@@ -48,6 +48,10 @@ const CLUSTER_COLOR: Record<string, string> = {
   finance: "#0d7abf",
   execution: "#d9562b",
   gambling: "#d9942d",
+  trafficking: "#be123c",
+  arms: "#334155",
+  counterfeit: "#0d9488",
+  extortion: "#a16207",
   unknown: "#9ca3af",
 };
 

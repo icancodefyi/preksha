@@ -501,19 +501,19 @@ export function evidenceChain(): { chain: EvidenceItem[]; root: string; verified
   }
   chain.push({
     id: "CDR",
-    label: "Call Detail Records (10,000 rows)",
+    label: `Call Detail Records (${cdr.length.toLocaleString("en-IN")} rows)`,
     sha256: sha(cdr.slice(0, 500).map((c) => c.call_id + c.timestamp).join(",")),
     verified: true,
   });
   chain.push({
     id: "FIN",
-    label: "Financial records (600 rows)",
+    label: `Financial records (${financial.length.toLocaleString("en-IN")} rows)`,
     sha256: sha(financial.map((t) => t.txn_id + t.amount).join(",")),
     verified: true,
   });
   chain.push({
     id: "DUMP",
-    label: "Tower dump (150 rows)",
+    label: `Tower dump (${towerDump.length.toLocaleString("en-IN")} rows)`,
     sha256: sha(towerDump.map((d) => d.dump_id + d.timestamp).join(",")),
     verified: true,
   });

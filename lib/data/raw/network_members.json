@@ -312,5 +312,219 @@
         "acct": "342000814420"
       }
     ]
+  },
+  {
+    "key": "sunita",
+    "name": "Sunita Wagh",
+    "alias": "Madam",
+    "role": "Placement agency owner",
+    "phone": "7020155432",
+    "phone2": null,
+    "cluster": "trafficking",
+    "city": "Pune",
+    "imei": "356210044871209",
+    "addr": "Khadki, Pune",
+    "accounts": [
+      {
+        "bank": "SBI",
+        "acct": "342000221198"
+      }
+    ]
+  },
+  {
+    "key": "meena",
+    "name": "Meena Bhalerao",
+    "alias": "Tai",
+    "role": "Field recruiter",
+    "phone": "7020288761",
+    "phone2": null,
+    "cluster": "trafficking",
+    "city": "Satara",
+    "imei": "358814072094411",
+    "addr": "Man Taluka, Satara",
+    "accounts": []
+  },
+  {
+    "key": "iqbal",
+    "name": "Iqbal Sheikh",
+    "alias": "Munna",
+    "role": "Transit flat operator",
+    "phone": "7020399145",
+    "phone2": null,
+    "cluster": "trafficking",
+    "city": "Mumbai",
+    "imei": "861099003317654",
+    "addr": "Kurla, Mumbai",
+    "accounts": [
+      {
+        "bank": "HDFC",
+        "acct": "5001007743210"
+      }
+    ]
+  },
+  {
+    "key": "rashid",
+    "name": "Rashid Ansari",
+    "alias": "Documents Rashid",
+    "role": "Passport / visa forger",
+    "phone": "7020411987",
+    "phone2": null,
+    "cluster": "trafficking",
+    "city": "Mumbai",
+    "imei": "864733015820917",
+    "addr": "Kalina, Mumbai",
+    "accounts": [
+      {
+        "bank": "ICICI",
+        "acct": "034001664521"
+      }
+    ]
+  },
+  {
+    "key": "irfan",
+    "name": "Irfan Qureshi",
+    "alias": "Munna Bihar",
+    "role": "Interstate arms courier",
+    "phone": "7311022456",
+    "phone2": null,
+    "cluster": "arms",
+    "city": "Nagpur",
+    "imei": "353310087621409",
+    "addr": "Itwari, Nagpur",
+    "accounts": []
+  },
+  {
+    "key": "salman",
+    "name": "Salman Pathan",
+    "alias": "SP",
+    "role": "Arms broker",
+    "phone": "7311144789",
+    "phone2": null,
+    "cluster": "arms",
+    "city": "Nagpur",
+    "imei": "868201044390761",
+    "addr": "Sadar, Nagpur",
+    "accounts": [
+      {
+        "bank": "Axis",
+        "acct": "914010077213456"
+      }
+    ]
+  },
+  {
+    "key": "nilesh",
+    "name": "Nilesh Bhosale",
+    "alias": "Nilya",
+    "role": "Local buyer / enforcer",
+    "phone": "7311255312",
+    "phone2": null,
+    "cluster": "arms",
+    "city": "Thane",
+    "imei": "359980021147732",
+    "addr": "Vartak Nagar, Thane",
+    "accounts": [
+      {
+        "bank": "Kotak",
+        "acct": "4411298765"
+      }
+    ]
+  },
+  {
+    "key": "zakir",
+    "name": "Zakir Ali",
+    "alias": "Zak",
+    "role": "FICN source handler",
+    "phone": "7625566234",
+    "phone2": null,
+    "cluster": "counterfeit",
+    "city": "Delhi",
+    "imei": "864022017736510",
+    "addr": "Seelampur, New Delhi",
+    "accounts": [
+      {
+        "bank": "ICICI",
+        "acct": "034001887654"
+      }
+    ]
+  },
+  {
+    "key": "waseem",
+    "name": "Waseem Khan",
+    "alias": "WK",
+    "role": "Train courier",
+    "phone": "7625677845",
+    "phone2": null,
+    "cluster": "counterfeit",
+    "city": "Delhi",
+    "imei": "911402277310985",
+    "addr": "Seemapuri, New Delhi",
+    "accounts": []
+  },
+  {
+    "key": "dilip",
+    "name": "Dilip Ghorpade",
+    "alias": "DG",
+    "role": "Pune circulator / hawala",
+    "phone": "7625788321",
+    "phone2": null,
+    "cluster": "counterfeit",
+    "city": "Pune",
+    "imei": "350091164208873",
+    "addr": "Swargate, Pune",
+    "accounts": [
+      {
+        "bank": "SBI",
+        "acct": "342000556213"
+      }
+    ]
+  },
+  {
+    "key": "yogesh",
+    "name": "Yogesh Chavan",
+    "alias": "Bhau",
+    "role": "Extortion ringleader",
+    "phone": "7896011234",
+    "phone2": null,
+    "cluster": "extortion",
+    "city": "Nashik",
+    "imei": "862710093481120",
+    "addr": "Nashik Road, Nashik",
+    "accounts": [
+      {
+        "bank": "SBI",
+        "acct": "342000778812"
+      }
+    ]
+  },
+  {
+    "key": "mangesh",
+    "name": "Mangesh Jadhav",
+    "alias": "Manya",
+    "role": "Collection enforcer",
+    "phone": "7896122456",
+    "phone2": null,
+    "cluster": "extortion",
+    "city": "Nashik",
+    "imei": "359147203368814",
+    "addr": "Panchavati, Nashik",
+    "accounts": []
+  },
+  {
+    "key": "suresh",
+    "name": "Suresh Patil",
+    "alias": "Vakil",
+    "role": "Document forger (land deeds)",
+    "phone": "7896233789",
+    "phone2": null,
+    "cluster": "extortion",
+    "city": "Thane",
+    "imei": "863305041129967",
+    "addr": "Manpada, Thane",
+    "accounts": [
+      {
+        "bank": "HDFC",
+        "acct": "5001003321987"
+      }
+    ]
   }
 ]

@@ -25,6 +25,7 @@ import {
   Mic,
   Activity,
   Fingerprint,
+  SquarePen,
 } from "lucide-react";
 
 interface AskSource {
@@ -283,6 +284,43 @@ export default function AskPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setCaseContext(d ? { id: d.id, title: d.title } : null));
   }, [caseId]);
+
+  // Chat history was purely in-memory (useState), so it vanished on every
+  // navigation away from /ask — App Router unmounts the page. Persist it to
+  // localStorage per scope (global vs. a specific case, so switching cases
+  // never shows another case's conversation) and restore on mount/scope
+  // change.
+  const storageKey = caseId ? `preksha:chat:case:${caseId}` : "preksha:chat:global";
+  const hydratedKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const key = storageKey;
+    hydratedKeyRef.current = null;
+    // Deferred a tick (async boundary) so this setState doesn't run
+    // synchronously inside the effect body — same pattern used for the
+    // focus-from-URL effect above.
+    queueMicrotask(() => {
+      let restored: ChatMessage[] = [];
+      try {
+        const raw = localStorage.getItem(key);
+        restored = raw ? JSON.parse(raw) : [];
+      } catch {
+        restored = [];
+      }
+      setMessages(restored);
+      hydratedKeyRef.current = key;
+    });
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (hydratedKeyRef.current !== storageKey) return; // restore hasn't landed yet — don't clobber storage
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(messages));
+    } catch {
+      /* storage full/unavailable — chat still works in-memory for this session */
+    }
+  }, [messages, storageKey]);
+
+  const newChat = () => setMessages([]);
 
   const loadOverview = useCallback(async () => {
     try {
@@ -569,6 +607,17 @@ export default function AskPage() {
                 {hasCorpus ? `${stats?.firs ?? 0} FIRs · ${(stats?.calls ?? 0).toLocaleString()} calls indexed` : "corpus offline"}
               </span>
             </div>
+            {messages.length > 0 && (
+              <button
+                type="button"
+                onClick={newChat}
+                title="Clear this conversation and start over"
+                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-neutral-200 px-3 text-[12px] font-semibold text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800"
+              >
+                <SquarePen className="size-3.5" />
+                New chat
+              </button>
+            )}
             <ThemeToggle variant="chat" />
             <Link
               href="/dashboard"
