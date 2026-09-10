@@ -368,19 +368,46 @@ function makeRider(shirtColor: string): THREE.Group {
 }
 
 // load a GLB model, normalize to a target height and sit it on the ground
+// Module-level (not per-mount) — the replay now covers 18 cases a viewer can
+// hop between via the case picker, and every case's city reuses the same 4
+// building GLBs + the getaway bike. Without this, switching cases re-fetched
+// and re-parsed the identical GLB file for every tower, every time. Load
+// each URL once, then .clone() the parsed result per call — Object3D.clone()
+// shares geometry/material buffers and only duplicates the (cheap) transform
+// graph, which is the standard pattern for reusing one glTF many times.
+const modelCache = new Map<string, Promise<THREE.Group>>();
+
+function loadModelBase(url: string): Promise<THREE.Group> {
+  let pending = modelCache.get(url);
+  if (!pending) {
+    pending = new Promise((resolve, reject) => {
+      new GLTFLoader().load(
+        url,
+        (gltf) => {
+          const wrap = new THREE.Group();
+          wrap.add(gltf.scene);
+          wrap.traverse((o) => {
+            const m = o as THREE.Mesh;
+            if (m.isMesh) {
+              m.castShadow = true;
+              m.receiveShadow = true;
+            }
+          });
+          resolve(wrap);
+        },
+        undefined,
+        () => reject(new Error(`failed to load ${url}`)),
+      );
+    });
+    modelCache.set(url, pending);
+  }
+  return pending;
+}
+
 function loadModel(url: string, height: number, onLoad: (g: THREE.Group) => void): void {
-  new GLTFLoader().load(
-    url,
-    (gltf) => {
-      const wrap = new THREE.Group();
-      wrap.add(gltf.scene);
-      wrap.traverse((o) => {
-        const m = o as THREE.Mesh;
-        if (m.isMesh) {
-          m.castShadow = true;
-          m.receiveShadow = true;
-        }
-      });
+  loadModelBase(url)
+    .then((base) => {
+      const wrap = base.clone(true);
       const box = new THREE.Box3().setFromObject(wrap);
       const size = box.getSize(new THREE.Vector3());
       const s = height / (size.y || 1);
@@ -390,10 +417,8 @@ function loadModel(url: string, height: number, onLoad: (g: THREE.Group) => void
       const c2 = b2.getCenter(new THREE.Vector3());
       wrap.position.set(-c2.x, -b2.min.y, -c2.z);
       onLoad(wrap);
-    },
-    undefined,
-    () => {},
-  );
+    })
+    .catch(() => {});
 }
 
 function makeBike(
@@ -656,6 +681,7 @@ export default function SimScene({
     const buildingTip: Record<string, THREE.Mesh> = {};
     const buildingModels = ["apartment", "house", "skyscraper", "smallbuilding"];
     let seedBase = 900;
+    let namedSceneTower = false; // only the first scene tower gets the full location name — a second one nearby would just duplicate it
     data.towers.forEach((t, i) => {
       const isScene = t.scene;
       const h = isScene ? 3.4 : 2.6 + mulberry32(seedBase)() * 2.0;
@@ -672,8 +698,18 @@ export default function SimScene({
       towerGrp.add(tip);
       buildingTip[t.id] = tip;
 
-      const lbl = makeLabel(t.id, "#9aa4c0", { size: 26, dim: true });
-      lbl.position.set(0, h + 1.1, 0);
+      // the scene building gets its real, case-specific location name (set
+      // by lib/graph/simulation.ts from the FIR's own narrative) in a bold
+      // marker; background towers (and any extra scene tower beyond the
+      // first) keep a dim cell-ID tag, staggered in height by index parity
+      // so nearby labels don't visually stack
+      const showName = isScene && t.name && !namedSceneTower;
+      if (showName) namedSceneTower = true;
+      const stagger = isScene ? 0 : (i % 2) * 0.55;
+      const lbl = showName
+        ? makeLabel(t.name, "#ffb020", { pill: true, size: 30 })
+        : makeLabel(t.id, "#9aa4c0", { size: 24, dim: true });
+      lbl.position.set(0, h + 1.1 + stagger, 0);
       towerGrp.add(lbl);
 
       const url = `/models/${buildingModels[i % buildingModels.length]}.glb`;
@@ -861,6 +897,47 @@ export default function SimScene({
     offenseRing.rotation.x = -Math.PI / 2;
     offenseRing.visible = false;
     scene.add(offenseRing);
+
+    // persistent scene beacon (generic cases only) — the offense ring above
+    // only flashes for ~6s around the incident; without something marking
+    // the location the rest of the runtime, the scene reads as empty city
+    // with nothing happening. A soft glowing beam, tinted per-case, keeps
+    // "here's where it happened" visible throughout.
+    let sceneBeacon: THREE.Group | null = null;
+    if (!data.bespoke) {
+      const beaconColor = new THREE.Color(data.actors[0]?.color ?? "#f43f5e");
+      const grp = new THREE.Group();
+      const beam = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.02, 0.45, 9, 16, 1, true),
+        new THREE.MeshBasicMaterial({
+          color: beaconColor,
+          transparent: true,
+          opacity: 0.2,
+          side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      );
+      beam.position.y = 4.5;
+      grp.add(beam);
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.5, 0.85, 40),
+        new THREE.MeshBasicMaterial({
+          color: beaconColor,
+          transparent: true,
+          opacity: 0.55,
+          side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      );
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.05;
+      grp.add(ring);
+      grp.position.set(data.scene.x, 0, data.scene.z);
+      scene.add(grp);
+      sceneBeacon = grp;
+    }
 
     // --- call arcs
     const callEvents = data.events.filter((e) => e.kind === "call");
@@ -1063,6 +1140,12 @@ export default function SimScene({
       const interior = isInterior(t);
       const escaping = data.bespoke && t >= 64 && t < 84;
       applyShot(t);
+
+      if (sceneBeacon) {
+        const pulse = 0.82 + Math.sin(t * 1.3) * 0.18;
+        sceneBeacon.scale.set(pulse, 1, pulse);
+        sceneBeacon.rotation.y = t * 0.15;
+      }
 
       onCall.clear();
       for (const e of data.events) {

@@ -15,6 +15,7 @@ import {
 } from "@/lib/data/seed";
 import {
   buildGraph,
+  firstSentences,
   keyOfPhone,
   simulateDisruption,
   type NetworkGraph,
@@ -401,7 +402,7 @@ export function reconstructCrime(
     phase: "Offense",
     time: `${f.incident_date}${f.incident_time !== "-" ? ` ${f.incident_time}` : ""}`,
     title: f.title,
-    detail: `${f.narrative.split(".").slice(0, 3).join(".")}.`, 
+    detail: firstSentences(f.narrative, 3),
     actors: accusedNames,
     source: `FIR ${f.fir_no}`,
   });

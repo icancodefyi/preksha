@@ -1,4 +1,5 @@
 import { burner, cdr, financial, firs, memberByPhone, networkMembers, towerDump, towers } from "@/lib/data/seed";
+import { firstSentences } from "@/lib/graph/engine";
 import type { FIRRecord } from "@/lib/data/types";
 
 // ---------------------------------------------------------------------------
@@ -164,6 +165,13 @@ function cityForFir(fir: FIRRecord): string | null {
   return knownCities.includes(d) ? d : null;
 }
 
+/** A real, case-specific name for the scene building — the first place named
+ * in the FIR (a street/locality), falling back to the police station —
+ * instead of the bare cell-tower ID every background building uses. */
+function sceneLocationName(fir: FIRRecord): string {
+  return fir.entities?.places?.[0] || fir.police_station;
+}
+
 interface Candidate {
   key: string;
   name: string;
@@ -296,19 +304,28 @@ export function buildGenericSimulation(fir: FIRRecord): SimData | null {
   const towerById = new Map(towersOut.map((t) => [t.id, t]));
 
   let scene: { x: number; z: number };
-  const sceneTowers = towersOut.filter((t) => t.scene);
+  let sceneTowers = towersOut.filter((t) => t.scene);
   if (sceneTowers.length) {
     scene = {
       x: sceneTowers.reduce((s, t) => s + t.x, 0) / sceneTowers.length,
       z: sceneTowers.reduce((s, t) => s + t.z, 0) / sceneTowers.length,
     };
   } else {
-    // epicenter fallback: the most-visited in-city tower across every chosen actor
+    // epicenter fallback: the most-visited in-city tower across every chosen
+    // actor, promoted to the same "scene" treatment (taller building, real
+    // name, orange marker) a tagged evidence tower gets — otherwise a case
+    // with no evidence.towers has no distinguishable scene building at all.
     const freq = new Map<string, number>();
     for (const c of chosen) for (const h of c.hits) if (cityTowerIds.has(h.cell)) freq.set(h.cell, (freq.get(h.cell) ?? 0) + 1);
     const top = [...freq.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
     const t = top ? towerById.get(top) : towersOut[0];
+    if (t) t.scene = true;
+    sceneTowers = t ? [t] : [];
     scene = t ? { x: t.x, z: t.z } : { x: 0, z: 0 };
+  }
+  if (sceneTowers.length) {
+    const locationName = sceneLocationName(fir);
+    for (const t of sceneTowers) t.name = locationName;
   }
 
   // off-scene column for remote/entity actors, west of the city
@@ -352,7 +369,13 @@ export function buildGenericSimulation(fir: FIRRecord): SimData | null {
     return 84 + u * 32;
   };
 
-  // keyframes — every chosen member's real cell-tower trail, in city-known towers only
+  // keyframes — every chosen member's real cell-tower trail, in city-known
+  // towers only. A minimum gap between stops is enforced: real hits often
+  // cluster within seconds of each other (several calls off the same tower
+  // in a burst), and without thinning those the figure would warp between
+  // towers almost instantly — technically "accurate" to the raw timestamps
+  // but reads as a glitch, not movement.
+  const MIN_KEYFRAME_GAP = 3;
   const keyframes: Record<string, SimKeyframe[]> = {};
   for (const c of chosen) {
     if (c.kind !== "member") {
@@ -364,8 +387,10 @@ export function buildGenericSimulation(fir: FIRRecord): SimData | null {
     let lastCell: string | null = null;
     for (const h of inCity) {
       if (h.cell === lastCell) continue;
+      const t = commsToSim(h.t);
+      if (kfs.length && t - kfs[kfs.length - 1].t < MIN_KEYFRAME_GAP) continue;
       lastCell = h.cell;
-      kfs.push({ t: commsToSim(h.t), towerId: h.cell, enter: kfs.length === 0 });
+      kfs.push({ t, towerId: h.cell, enter: kfs.length === 0 });
     }
     keyframes[c.key] = kfs;
   }
@@ -426,7 +451,7 @@ export function buildGenericSimulation(fir: FIRRecord): SimData | null {
     kind: "offense",
     towerId: sceneTowers[0]?.id,
     label: fir.title,
-    sub: fir.narrative.split(".").slice(0, 1).join(".") + ".",
+    sub: firstSentences(fir.narrative, 1),
   });
 
   for (const p of moneyPairs) {
@@ -470,7 +495,7 @@ export function buildGenericSimulation(fir: FIRRecord): SimData | null {
     title: fir.title,
     date: fir.incident_date,
     time: fir.incident_time === "-" ? "" : fir.incident_time,
-    summary: fir.narrative.split(".").slice(0, 2).join(".") + ".",
+    summary: firstSentences(fir.narrative, 2),
     duration: TOTAL,
     scene,
     towers: towersOut,
@@ -530,6 +555,9 @@ function buildDadarSimulation(fir: FIRRecord): SimData {
   const sceneA = towersOut.find((t) => t.id === "MUM-008") ?? towersOut[0];
   const sceneB = towersOut.find((t) => t.id === "MUM-009") ?? towersOut[1];
   const scene = { x: (sceneA.x + sceneB.x) / 2, z: (sceneA.z + sceneB.z) / 2 };
+  const dadarLocationName = sceneLocationName(fir);
+  sceneA.name = dadarLocationName;
+  sceneB.name = dadarLocationName;
 
   const actor = (
     id: string,
@@ -671,7 +699,7 @@ function buildDadarSimulation(fir: FIRRecord): SimData {
     title: fir.title,
     date: fir.incident_date,
     time: fir.incident_time === "-" ? "" : fir.incident_time,
-    summary: fir.narrative.split(".").slice(0, 2).join(".") + ".",
+    summary: firstSentences(fir.narrative, 2),
     duration: TOTAL,
     scene,
     towers: towersOut,

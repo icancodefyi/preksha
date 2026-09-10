@@ -424,3 +424,15 @@ export function simulateDisruption(
     remainingBridges,
   };
 }
+
+/**
+ * First N sentences of a FIR narrative. Splits on ". " (period + space), not
+ * bare ".": every narrative in this dataset writes dates as dd.mm.yyyy with
+ * no space after the internal periods (e.g. "14.11.2023"), so a plain
+ * `text.split(".")` chops dates apart and produces garbage like "On 14.".
+ */
+export function firstSentences(text: string, n: number): string {
+  const parts = text.split(". ");
+  const joined = parts.slice(0, n).join(". ").trim();
+  return /[.!?]$/.test(joined) ? joined : `${joined}.`;
+}

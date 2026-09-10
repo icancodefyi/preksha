@@ -180,21 +180,20 @@ export default function SimulatePage() {
     };
   }, []);
 
-  // generic captions — derived from this case's own phases/events, keyed to
-  // the same phase boundaries every replay shares (0 premeditation, 54 the
-  // offense, 64 escape, 84 money trail)
+  // generic captions — one per real evidence event (call/ping/money/offense),
+  // not just a handful of phase markers, so the caption bar tracks what's
+  // actually happening on screen instead of sitting on stale text for 20-30s
+  // at a stretch between phase transitions
   const captions = useMemo(() => {
     if (!data || isBespoke) return [];
-    const offense = data.events.find((e) => e.kind === "offense");
-    const hasMoney = data.events.some((e) => e.kind === "money");
-    const hasEscape = data.events.some((e) => e.kind !== "offense" && e.t >= 64 && e.t < 84);
-    return [
-      { t: 0, text: data.summary },
-      { t: 54, text: offense?.sub || data.title },
-      { t: 64, text: hasEscape ? "Communications continue in the hours after the incident." : "The trail goes quiet after the incident." },
-      { t: 84, text: hasMoney ? "Following the money trail." : "No further financial movement recorded." },
-      { t: 116, text: "Case file closed — cross-referenced against the wider network." },
-    ];
+    const real = data.events.filter((e) => !e.ambient).sort((a, b) => a.t - b.t);
+    const list: { t: number; text: string }[] = [{ t: 0, text: data.summary }];
+    for (const e of real) {
+      const text = e.kind === "offense" ? e.sub || e.label : e.sub ? `${e.label} — ${e.sub}` : e.label;
+      list.push({ t: e.t, text });
+    }
+    list.push({ t: 116, text: "Case file closed — cross-referenced against the wider network." });
+    return list;
   }, [data, isBespoke]);
   const currentCaption = useMemo(() => {
     if (!captions.length) return null;
