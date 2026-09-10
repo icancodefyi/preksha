@@ -519,8 +519,8 @@ body {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(120% 80% at 50% 36%, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 0.05) 50%, rgba(0, 0, 0, 0.4) 100%),
-    linear-gradient(180deg, rgba(7, 7, 8, 0.55) 0%, rgba(7, 7, 8, 0.05) 24%, rgba(7, 7, 8, 0.05) 66%, rgba(7, 7, 8, 0.8) 100%);
+    radial-gradient(100% 70% at 50% 42%, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.28) 45%, rgba(0, 0, 0, 0.45) 100%),
+    linear-gradient(180deg, rgba(7, 7, 8, 0.6) 0%, rgba(7, 7, 8, 0.12) 22%, rgba(7, 7, 8, 0.1) 62%, rgba(7, 7, 8, 0.88) 100%);
 }
 
 .land-hero-copy {
@@ -607,6 +607,86 @@ body {
   50% {
     transform: translateY(6px);
     opacity: 1;
+  }
+}
+
+/* ============================================================
+   LOGO TICKER — horizontal scrolling cyber cell logos
+   ============================================================ */
+.logo-ticker {
+  width: 100%;
+  padding: clamp(3.5rem, 7vw, 6rem) clamp(1.25rem, 6vw, 6rem);
+  background: var(--preksha-bg);
+  border-top: 1px solid var(--preksha-line);
+}
+
+.logo-ticker-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.logo-ticker-title {
+  font-family: "Alliance No.1", sans-serif;
+  font-weight: 600;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  line-height: 1.15;
+  color: var(--preksha-ink);
+  text-align: center;
+  margin: 0 0 2.5rem;
+}
+
+.logo-ticker-window {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    #000 12%,
+    #000 88%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    #000 12%,
+    #000 88%,
+    transparent 100%
+  );
+}
+
+.logo-ticker-track {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  animation: logo-ticker-scroll 52s linear infinite;
+}
+
+.logo-ticker:hover .logo-ticker-track {
+  animation-play-state: paused;
+}
+
+.logo-ticker-item {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 4.5rem;
+  border-right: 1px solid var(--preksha-line);
+}
+
+.logo-ticker-img {
+  height: 100px;
+  width: auto;
+  max-width: 260px;
+  object-fit: contain;
+  display: block;
+}
+
+@keyframes logo-ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
   }
 }
 

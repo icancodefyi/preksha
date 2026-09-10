@@ -4,6 +4,7 @@ import Link from "next/link";
 import Nav from "./nav";
 import Carousel from "./carousel";
 import HorizontalFeed from "../components/intelligence/HorizontalFeed";
+import LogoTicker from "../components/LogoTicker";
 import { useEffect, useRef, type VideoHTMLAttributes, type ReactNode } from "react";
 
 function PlayOnView({
@@ -69,16 +70,19 @@ export default function Home() {
         <div className="land-hero-copy">
          
           <h1 className="land-hero-title">
-            Sovereign AI for Every Investigation
+            Every cyber case. One network.
           </h1>
           <p className="land-hero-sub">
-            I&apos;m the real product. We connect every record — calls,
-            transactions, devices, locations, documents — into one
-            evidence-grounded network you can explore, query, and cite.
+            CDR calls, UPI transfers, tower pings, devices, CCTV and FIRs —
+            connect all of them into one evidence-grounded network you can
+            explore, query, and cite.
           </p>
         </div>
         <div className="land-scroll-hint">Scroll to Explore</div>
       </header>
+
+      {/* ——— Cyber cell logos ——— */}
+      <LogoTicker />
 
       {/* ——— Intelligence Feed ——— */}
       <section className="land-section" style={{ paddingTop: 0, paddingBottom: 0 }}>
