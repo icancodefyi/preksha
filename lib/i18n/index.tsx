@@ -26,6 +26,16 @@ const DICT: Record<Lang, Record<string, string>> = {
     "common.courtReport": "Court report",
     "common.verified": "verified",
     "common.tampered": "tampered",
+    "ask.placeholder": "Ask the case anything — every answer is cited back to the source records.",
+    "ask.send": "Send",
+    "ask.voice": "Voice input",
+    "ask.listening": "Listening…",
+    "ask.speak": "Speak answer",
+    "ask.stopSpeaking": "Stop",
+    "ask.sources": "Sources",
+    "ask.howAnswered": "How this was answered",
+    "ask.followUp": "Follow up",
+    "ask.voiceUnsupported": "Voice input isn't supported in this browser. Type your question instead.",
     "dash.title": "Investigation overview",
     "dash.sub": "Kingpin, alerts and the active case — computed from the evidence graph",
     "dash.loading": "Loading evidence graph…",
@@ -172,6 +182,16 @@ const DICT: Record<Lang, Record<string, string>> = {
     "common.courtReport": "कोर्ट रिपोर्ट",
     "common.verified": "सत्यापित",
     "common.tampered": "छेड़छाड़",
+    "ask.placeholder": "मामले से कुछ भी पूछें — हर उत्तर स्रोत दस्तावेज़ों से जुड़ा होता है।",
+    "ask.send": "भेजें",
+    "ask.voice": "वॉइस इनपुट",
+    "ask.listening": "सुन रहे हैं…",
+    "ask.speak": "उत्तर बोलें",
+    "ask.stopSpeaking": "रोकें",
+    "ask.sources": "स्रोत",
+    "ask.howAnswered": "इसका उत्तर कैसे दिया गया",
+    "ask.followUp": "आगे पूछें",
+    "ask.voiceUnsupported": "इस ब्राउज़र में वॉइस इनपुट समर्थित नहीं है। प्रश्न लिखकर पूछें।",
     "dash.title": "जांच अवलोकन",
     "dash.sub": "किंगपिन, अलर्ट और सक्रिय मामला — साक्ष्य ग्राफ से गणना",
     "dash.loading": "साक्ष्य ग्राफ लोड हो रहा है…",
@@ -318,6 +338,16 @@ const DICT: Record<Lang, Record<string, string>> = {
     "common.courtReport": "कोर्ट अहवाल",
     "common.verified": "सत्यापित",
     "common.tampered": "छेडछाड",
+    "ask.placeholder": "प्रकरणाबद्दल काहीही विचारा — प्रत्येक उत्तर स्रोत नोंदींशी जोडलेला असतो.",
+    "ask.send": "पाठवा",
+    "ask.voice": "व्हॉइस इनपुट",
+    "ask.listening": "ऐकत आहो…",
+    "ask.speak": "उत्तर वाचा",
+    "ask.stopSpeaking": "थांबा",
+    "ask.sources": "स्रोत",
+    "ask.howAnswered": "हे कसे उत्तरले गेले",
+    "ask.followUp": "पुढे विचारा",
+    "ask.voiceUnsupported": "या ब्राउझरमध्ये व्हॉइस इनपुट समर्थित नाही. प्रश्न टाइप करा.",
     "dash.title": "तपास आढावा",
     "dash.sub": "किंगपिन, अलर्ट आणि सक्रिय प्रकरण — पुरावा आलेखावरून",
     "dash.loading": "पुरावा आलेख लोड होत आहे…",
@@ -464,6 +494,16 @@ const DICT: Record<Lang, Record<string, string>> = {
     "common.courtReport": "Court report",
     "common.verified": "verified",
     "common.tampered": "tampered",
+    "ask.placeholder": "Case se kuch bhi pucho — har answer source records se cited hota hai.",
+    "ask.send": "Send",
+    "ask.voice": "Voice input",
+    "ask.listening": "Sun rahe hain…",
+    "ask.speak": "Answer bolo",
+    "ask.stopSpeaking": "Roko",
+    "ask.sources": "Sources",
+    "ask.howAnswered": "Yeh kaise answer hua",
+    "ask.followUp": "Aur pucho",
+    "ask.voiceUnsupported": "Is browser mein voice input supported nahi hai. Apna question type karo.",
     "dash.title": "Investigation overview",
     "dash.sub": "Kingpin, alerts aur active case — evidence graph se",
     "dash.loading": "Evidence graph load ho raha hai…",
@@ -641,15 +681,4 @@ export function useI18n(): I18n {
   const ctx = useContext(I18nContext);
   if (!ctx) throw new Error("useI18n must be used within a LanguageProvider");
   return ctx;
-}
-
-export function speechSynthesisSpeak(text: string, lang: string) {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = lang;
-  const voices = window.speechSynthesis.getVoices();
-  const v = voices.find((x) => x.lang === lang) ?? voices.find((x) => x.lang.startsWith(lang.slice(0, 2)));
-  if (v) u.voice = v;
-  window.speechSynthesis.speak(u);
 }

@@ -78,6 +78,79 @@ const SUGGESTED = [
   "Who should we arrest first?",
 ];
 
+// ── Text-to-speech (ported from vcet-hackathon) ───────────────────────────
+// The utterance is pinned to module scope so Chromium/Brave never
+// garbage-collect it mid-sentence, and one global "speaking index" means a
+// single bubble reads at a time — tapping another swaps. rate/pitch/volume
+// and the matching-voice fallback are verbatim from the vcet build that
+// worked on Brave.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+let _currentUtterance: SpeechSynthesisUtterance | null = null;
+let _speakingIndex: number | null = null;
+let _onStateChange: ((i: number | null) => void) | null = null;
+
+/** The spoken form is the whole answer read as prose — markdown and citations removed. */
+function spokenForm(a: AskAnswer): string {
+  return a.answer
+    .replace(/\[(\d+)(?:, ?\d+)*\]/g, " ")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[#*`_]/g, " ")
+    .replace(/\n+/g, ". ")
+    .replace(/[—–]/g, ", ")
+    .replace(/ +([.,])/g, "$1")
+    .replace(/\.+/g, ".")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function speakText(text: string, index: number, onStateChange?: (i: number | null) => void, lang?: string) {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  // If already speaking this bubble, stop
+  if (_speakingIndex === index) {
+    window.speechSynthesis.cancel();
+    _currentUtterance = null;
+    _speakingIndex = null;
+    onStateChange?.(null);
+    _onStateChange?.(null);
+    return;
+  }
+  // Stop any ongoing speech
+  window.speechSynthesis.cancel();
+  _currentUtterance = null;
+  _onStateChange?.(null);
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  // Without this the browser reads Devanagari with an English voice, which
+  // produces noise rather than Hindi. Picking a matching installed voice as
+  // well as setting `lang` is what actually makes Chrome/Brave switch.
+  if (lang) {
+    utterance.lang = lang;
+    const base = lang.split("-")[0];
+    const voice =
+      window.speechSynthesis.getVoices().find((v) => v.lang === lang) ??
+      window.speechSynthesis.getVoices().find((v) => v.lang.startsWith(base));
+    if (voice) utterance.voice = voice;
+  }
+  utterance.rate = 0.9;
+  utterance.pitch = 1;
+  utterance.volume = 1;
+  utterance.onend = () => {
+    _speakingIndex = null;
+    _currentUtterance = null;
+    onStateChange?.(null);
+  };
+  utterance.onerror = () => {
+    _speakingIndex = null;
+    _currentUtterance = null;
+    onStateChange?.(null);
+  };
+  _currentUtterance = utterance;
+  _speakingIndex = index;
+  _onStateChange = onStateChange ?? null;
+  onStateChange?.(index);
+  window.speechSynthesis.speak(utterance);
+}
+
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
@@ -171,34 +244,20 @@ function QueryTrace({
   );
 }
 
-function MessageBubble({ message, onFollowUp }: { message: ChatMessage; onFollowUp: (q: string) => void }) {
+function MessageBubble({
+  message,
+  index,
+  onFollowUp,
+}: {
+  message: ChatMessage;
+  index: number;
+  onFollowUp: (q: string) => void;
+}) {
   const isUser = message.role === "user";
   const a = message.structured;
   const [openTrace, setOpenTrace] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const { t, speechLang } = useI18n();
-
-  const speak = (text: string) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    if (speaking) {
-      window.speechSynthesis.cancel();
-      setSpeaking(false);
-      return;
-    }
-    const plain = text.replace(/[#*_`\[\]()]/g, " ");
-    const u = new SpeechSynthesisUtterance(plain);
-    u.lang = speechLang;
-    const voices = window.speechSynthesis.getVoices();
-    const best =
-      voices.find((v) => v.lang === speechLang) ??
-      voices.find((v) => v.lang.startsWith(speechLang.slice(0, 2)));
-    if (best) u.voice = best;
-    u.onend = () => setSpeaking(false);
-    u.onerror = () => setSpeaking(false);
-    setSpeaking(true);
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
-  };
 
   if (isUser) {
     return (
@@ -236,7 +295,10 @@ function MessageBubble({ message, onFollowUp }: { message: ChatMessage; onFollow
           </span>
           <button
             type="button"
-            onClick={() => speak(a.answer)}
+            onClick={() => {
+            const spoken = spokenForm(a);
+            speakText(spoken, index, (i) => setSpeaking(i === index), speechLang);
+          }}
             title={speaking ? t("ask.stopSpeaking") : t("ask.speak")}
             className="ml-auto inline-flex h-6 items-center gap-1 rounded-full border border-neutral-200 px-2.5 text-[10px] font-medium text-neutral-500 transition-colors hover:border-neutral-950 hover:text-neutral-950"
           >
@@ -314,6 +376,17 @@ function AskPageInner() {
   const [liveTraceOpen, setLiveTraceOpen] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Brave (like Chromium) populates the voice list asynchronously — kick a
+  // getVoices() early so the TTS voice-picker isn't working against an empty
+  // list on the first click.
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    window.speechSynthesis.getVoices();
+    const onVoices = () => window.speechSynthesis.getVoices();
+    window.speechSynthesis.addEventListener("voiceschanged", onVoices);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", onVoices);
+  }, []);
 
   // "Chat with case" (from /cases and /cases/[caseId]) lands here as
   // /ask?case=<id> — every question then goes through /api/ask?case=<id>,
@@ -403,26 +476,23 @@ function AskPageInner() {
   }, [messages, loading]);
 
   const startListening = () => {
-    interface SRResultEvent {
-      results: { 0: { 0: { transcript: string } } };
-    }
-    const Ctor = (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionLike }).SpeechRecognition
+    const SpeechRecognition = (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionLike }).SpeechRecognition
       ?? (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognitionLike }).webkitSpeechRecognition
       ?? null;
     type SpeechRecognitionLike = {
       lang: string;
       interimResults: boolean;
       maxAlternatives: number;
-      onresult: ((e: SRResultEvent) => void) | null;
+      onresult: ((e: { results: { 0: { 0: { transcript: string } } } }) => void) | null;
       onerror: (() => void) | null;
       onend: (() => void) | null;
       start: () => void;
     };
-    if (!Ctor) {
-      alert("Speech recognition is not supported in this browser.");
+    if (!SpeechRecognition) {
+      alert(t("ask.voiceUnsupported"));
       return;
     }
-    const recognition = new Ctor();
+    const recognition = new SpeechRecognition();
     recognition.lang = speechLang;
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
@@ -729,7 +799,7 @@ function AskPageInner() {
 
             {messages.map((msg, i) => (
               <div key={i}>
-                <MessageBubble message={msg} onFollowUp={(q) => handleSubmit(q)} />
+                <MessageBubble message={msg} index={i} onFollowUp={(q) => handleSubmit(q)} />
               </div>
             ))}
 
