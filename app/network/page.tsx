@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { WsShell } from "@/components/ws/ws-shell";
 import { cn } from "@/lib/utils";
 import { forceLayout } from "@/lib/graph/layout";
 import { GraphCanvas } from "@/components/graph/GraphCanvas";
+import { useI18n } from "@/lib/i18n";
 import {
   Loader2,
   ArrowUpRight,
@@ -88,6 +89,15 @@ const CLUSTER_COLOR: Record<string, string> = {
 // network tab (app/cases/[caseId]/page.tsx) so both use the same physics.
 
 export default function NetworkPage() {
+  return (
+    <Suspense fallback={null}>
+      <NetworkPageInner />
+    </Suspense>
+  );
+}
+
+function NetworkPageInner() {
+  const { t } = useI18n();
   const [data, setData] = useState<NetworkData | null>(null);
   const [selected, setSelected] = useState<GraphNode | null>(null);
   const [dossier, setDossier] = useState<Dossier | null>(null);
@@ -327,12 +337,12 @@ export default function NetworkPage() {
 
   return (
     <WsShell
-      title="Network graph"
-      sub="Call-graph edges weighted by volume · node size = betweenness influence"
+      title={t("net.title")}
+      sub={t("net.sub")}
       right={
         <span className="hidden items-center gap-2 text-[11px] font-medium text-neutral-400 sm:flex">
           <Grip className="size-3.5" />
-          drag nodes · click for dossier
+          {t("net.dragHint")}
         </span>
       }
     >
@@ -340,7 +350,7 @@ export default function NetworkPage() {
         {/* Graph canvas */}
         <div className="relative overflow-hidden rounded-3xl border border-neutral-200/80 bg-white shadow-[0_1px_2px_rgba(16,15,25,0.04),0_12px_32px_-12px_rgba(16,15,25,0.10)]">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-neutral-100 px-5 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Graph</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">{t("net.graph")}</p>
             {Object.entries(CLUSTER_COLOR)
               .filter(([c]) => data?.nodes.some((n) => n.cluster === c))
               .map(([c, color]) => {
@@ -372,15 +382,15 @@ export default function NetworkPage() {
                 onClick={() => setActiveClusters(new Set())}
                 className="rounded-full px-2 py-1 text-[11px] font-medium text-neutral-400 underline decoration-dotted hover:text-neutral-700"
               >
-                clear filter
+                {t("net.clearFilter")}
               </button>
             )}
             <span className="ml-auto flex items-center gap-2">
               <span className="flex items-center gap-1.5 text-[11px] font-medium text-neutral-400">
                 <GitBranch className="size-3.5" />
                 {data
-                  ? `${data.nodes.length - removedKeys.size} nodes · ${visibleEdgeCount} links${
-                      removedKeys.size > 0 ? ` · ${removedKeys.size} removed` : ""
+                  ? `${data.nodes.length - removedKeys.size} ${t("net.nodes")} · ${visibleEdgeCount} ${t("net.links")}${
+                      removedKeys.size > 0 ? ` · ${removedKeys.size} ${t("net.removed")}` : ""
                     }`
                   : "…"}
               </span>
@@ -401,7 +411,7 @@ export default function NetworkPage() {
           <div className="relative h-[62vh] min-h-[420px] w-full touch-none select-none">
             {!data ? (
               <div className="flex h-full items-center justify-center gap-2 text-[13px] text-neutral-400">
-                <Loader2 className="size-4 animate-spin" /> Building graph…
+                <Loader2 className="size-4 animate-spin" /> {t("net.building")}
               </div>
             ) : (
               <svg
@@ -467,7 +477,7 @@ export default function NetworkPage() {
           <div className="rounded-3xl border border-neutral-200/80 bg-white">
             <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
-                {dossierLoading ? "Loading…" : selected ? "Node dossier" : "Select a node"}
+                {dossierLoading ? t("common.loading") : selected ? t("net.nodeDossier") : t("net.selectNode")}
               </p>
               {selected && (
                 <Target className="size-4 text-neutral-300" />
@@ -482,7 +492,7 @@ export default function NetworkPage() {
                     <p className="mt-0.5 text-[12px] text-neutral-500">
                       {selected.alias ? `“${selected.alias}” · ` : ""}
                       {selected.role}
-                      {selected.type === "burner" ? " · burned SIM" : ""}
+                      {selected.type === "burner" ? " · " + t("net.burnedSim") : ""}
                     </p>
                   </div>
                   <span
@@ -504,19 +514,19 @@ export default function NetworkPage() {
                       <p className="text-[17px] font-medium tabular-nums leading-none tracking-[-0.02em] text-neutral-950">
                         {dossier.risk}
                       </p>
-                      <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">Risk / 100</p>
+                      <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">{t("net.riskPer100")}</p>
                     </div>
                     <div className="flex-1 rounded-2xl bg-neutral-50 px-3.5 py-3">
                       <p className="text-[17px] font-medium tabular-nums leading-none tracking-[-0.02em] text-neutral-950">
                         {Math.round(dossier.metrics.betweenness * 100) / 100}
                       </p>
-                      <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">Betweenness</p>
+                      <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">{t("net.betweenness")}</p>
                     </div>
                     <div className="flex-1 rounded-2xl bg-neutral-50 px-3.5 py-3">
                       <p className="text-[17px] font-medium tabular-nums leading-none tracking-[-0.02em] text-neutral-950">
                         {dossier.firCount}
                       </p>
-                      <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">FIRs</p>
+                      <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">{t("net.firs")}</p>
                     </div>
                   </div>
                 )}
@@ -524,7 +534,7 @@ export default function NetworkPage() {
                 {dossier && dossier.topContacts.length > 0 && (
                   <div className="mt-4">
                     <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
-                      Top contacts <span className="normal-case text-neutral-300">· click to jump to them in the graph</span>
+                      {t("net.topContacts")} <span className="normal-case text-neutral-300">{t("net.clickJump")}</span>
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {dossier.topContacts.slice(0, 6).map((c, i) => (
@@ -544,25 +554,25 @@ export default function NetworkPage() {
 
                 {dossier && dossier.money.txns > 0 && (
                   <div className="mt-4">
-                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Financial activity</p>
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">{t("net.financialActivity")}</p>
                     <div className="flex items-center gap-2.5">
                       <div className="flex-1 rounded-2xl bg-neutral-50 px-3.5 py-3">
                         <p className="text-[15px] font-medium tabular-nums leading-none tracking-[-0.02em] text-neutral-950">
                           ₹{dossier.money.inflow.toLocaleString("en-IN")}
                         </p>
-                        <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">Inflow</p>
+                        <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">{t("net.inflow")}</p>
                       </div>
                       <div className="flex-1 rounded-2xl bg-neutral-50 px-3.5 py-3">
                         <p className="text-[15px] font-medium tabular-nums leading-none tracking-[-0.02em] text-neutral-950">
                           ₹{dossier.money.outflow.toLocaleString("en-IN")}
                         </p>
-                        <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">Outflow</p>
+                        <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">{t("net.outflow")}</p>
                       </div>
                       <div className="flex-1 rounded-2xl bg-neutral-50 px-3.5 py-3">
                         <p className="text-[15px] font-medium tabular-nums leading-none tracking-[-0.02em] text-neutral-950">
                           {dossier.money.txns}
                         </p>
-                        <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">Txns</p>
+                        <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">{t("net.txns")}</p>
                       </div>
                     </div>
                   </div>
@@ -571,7 +581,7 @@ export default function NetworkPage() {
                 {dossier && dossier.firs.length > 0 && (
                   <div className="mt-4">
                     <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
-                      Linked FIRs <span className="normal-case text-neutral-300">· click for details</span>
+                      {t("net.linkedFirs")} <span className="normal-case text-neutral-300">{t("net.clickDetails")}</span>
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {dossier.firs.map((f) => (
@@ -600,7 +610,7 @@ export default function NetworkPage() {
                             <p className="font-semibold text-neutral-900">{f.title}</p>
                             <p className="mt-0.5 text-neutral-400">{f.category} · {f.year}</p>
                             <Link href="/evidence" className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-neutral-950 hover:underline">
-                              View in evidence chain <ArrowUpRight className="size-3" />
+                              {t("net.viewEvidence")} <ArrowUpRight className="size-3" />
                             </Link>
                           </div>
                         );
@@ -611,7 +621,7 @@ export default function NetworkPage() {
 
                 {dossier && dossier.bankAccounts.length > 0 && (
                   <div className="mt-4">
-                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Bank accounts</p>
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">{t("net.bankAccounts")}</p>
                     <div className="space-y-1.5">
                       {dossier.bankAccounts.map((b, i) => (
                         <div key={i} className="flex items-center gap-2 rounded-xl border border-neutral-100 bg-white px-2.5 py-1.5 text-[11.5px] text-neutral-600">
@@ -631,16 +641,16 @@ export default function NetworkPage() {
                   href={`/suspects?focus=${encodeURIComponent(selected.name)}`}
                   className="group mt-5 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-neutral-950"
                 >
-                  Open full dossier
+                  {t("net.openDossier")}
                   <ArrowUpRight className="size-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                 </Link>
               </div>
             ) : (
               <div className="px-5 py-10 text-center text-[12.5px] leading-[1.6] text-neutral-400">
-                Click a node to open its dossier, or drag to rearrange the graph.
+                {t("net.emptyHint")}
                 <div className="mt-5 rounded-2xl bg-neutral-50 px-4 py-3 text-left text-[11px] text-neutral-500">
-                  <p className="mb-1 font-semibold text-neutral-700">Read the graph</p>
-                  <p>Bigger node = higher betweenness (broker of communication). Cluster colour = the criminal economy each member sits in. The red dashed ring marks a burned SIM.</p>
+                  <p className="mb-1 font-semibold text-neutral-700">{t("net.readGraph")}</p>
+                  <p>{t("net.readGraphDesc")}</p>
                 </div>
               </div>
             )}
@@ -649,9 +659,9 @@ export default function NetworkPage() {
           {/* Disruption simulator */}
           <div className="rounded-3xl border border-neutral-200/80 bg-white">
             <div className="border-b border-neutral-100 px-5 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Disruption simulator</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">{t("net.disruptionSim")}</p>
               <p className="mt-1 text-[11px] leading-[1.5] text-neutral-400">
-                Remove suspects from the graph and see how far the network fragments — add anyone back any time.
+                {t("net.disruptionDesc")}
               </p>
             </div>
             <div className="space-y-3 px-5 py-4">
@@ -661,7 +671,7 @@ export default function NetworkPage() {
                   onChange={(e) => setSimTarget(e.target.value)}
                   className="h-9 min-w-0 flex-1 rounded-xl border border-neutral-200 bg-white px-3 text-[12.5px] font-medium text-neutral-800 focus:border-neutral-400 focus:outline-none"
                 >
-                  <option value="">Remove whom…</option>
+                  <option value="">{t("net.removeWhom")}</option>
                   {(data?.disruptionRanking ?? []).map((d) => {
                     const n = data?.nodes.find((x) => x.name === d.name);
                     if (!n || removedKeys.has(n.key)) return null;
@@ -678,7 +688,7 @@ export default function NetworkPage() {
                   className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-neutral-950 px-3.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-neutral-800 disabled:bg-neutral-200 disabled:text-neutral-400"
                 >
                   {simLoading ? <Loader2 className="size-3.5 animate-spin" /> : <ShieldX className="size-3.5" />}
-                  Remove
+                  {t("net.remove")}
                 </button>
               </div>
 
@@ -691,7 +701,7 @@ export default function NetworkPage() {
                         key={key}
                         type="button"
                         onClick={() => restoreToNetwork(key)}
-                        title="Add back to the network"
+                        title={t("net.addBack")}
                         className="group flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 py-1 pl-2.5 pr-2 text-[11px] font-medium text-neutral-500 transition-colors hover:border-[#c64e27]/40 hover:bg-[#c64e27]/5 hover:text-[#c64e27]"
                       >
                         {n?.name ?? key}
@@ -707,8 +717,8 @@ export default function NetworkPage() {
                   <div className="flex items-center justify-between bg-neutral-50 px-3.5 py-2.5">
                     <span className="text-[12px] font-semibold text-neutral-800">
                       {sim.removedNames.length > 1
-                        ? `${sim.removedNames.length} suspects removed`
-                        : `${sim.removedNames[0]} removed`}
+                        ? `${sim.removedNames.length} ${t("net.suspectsRemoved")}`
+                        : `${sim.removedNames[0]} ${t("net.removed")}`}
                     </span>
                     <span
                       className={cn(
@@ -721,10 +731,10 @@ export default function NetworkPage() {
                   </div>
                   <dl className="divide-y divide-neutral-100 px-3.5">
                     {[
-                      { k: "Largest component before", v: `${sim.lccSizeBefore} members` },
-                      { k: "Largest component after", v: `${sim.lccSizeAfter} members` },
-                      { k: "Fragments after", v: `${sim.fragmentCountAfter}` },
-                      { k: "Remaining bridges", v: sim.remainingBridges.join(", ") || "—" },
+                      { k: t("net.lccBefore"), v: `${sim.lccSizeBefore} members` },
+                      { k: t("net.lccAfter"), v: `${sim.lccSizeAfter} members` },
+                      { k: t("net.fragmentsAfter"), v: `${sim.fragmentCountAfter}` },
+                      { k: t("net.remainingBridges"), v: sim.remainingBridges.join(", ") || "—" },
                     ].map((row) => (
                       <div key={row.k} className="flex items-baseline justify-between gap-3 py-2.5">
                         <dt className="text-[11.5px] text-neutral-500">{row.k}</dt>

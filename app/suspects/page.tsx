@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { WsShell } from "@/components/ws/ws-shell";
 import { cn } from "@/lib/utils";
 import { Loader2, ArrowUpRight, MapPin, Phone, Crown, FileText } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 interface SuspectRow {
   key: string;
@@ -56,6 +57,15 @@ const CLUSTER_COLOR: Record<string, string> = {
 };
 
 export default function SuspectsPage() {
+  return (
+    <Suspense fallback={null}>
+      <SuspectsPageInner />
+    </Suspense>
+  );
+}
+
+function SuspectsPageInner() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const focusedFromUrlRef = useRef(false);
   const [rows, setRows] = useState<SuspectRow[]>([]);
@@ -96,18 +106,18 @@ export default function SuspectsPage() {
   }, [rows, searchParams]);
 
   return (
-    <WsShell title="Suspect rankings" sub="Risk fuses centrality, FIR involvement, burner linkage and money flow">
+    <WsShell title={t("suspects.title")} sub={t("suspects.sub")}>
       <div className="grid gap-4 lg:grid-cols-[26rem_minmax(0,1fr)]">
         <div className="rounded-3xl border border-neutral-200/80 bg-white lg:max-h-[calc(100vh-10rem)] lg:overflow-y-auto">
           <div className="border-b border-neutral-100 px-5 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
-              Ranked by risk
+              {t("suspects.rankedByRisk")}
             </p>
           </div>
           <div className="space-y-1 p-2.5">
             {rows.length === 0 && (
               <p className="flex items-center gap-2 px-3 py-6 text-[12.5px] text-neutral-400">
-                <Loader2 className="size-3.5 animate-spin" /> Scoring suspects…
+                <Loader2 className="size-3.5 animate-spin" /> {t("suspects.scoring")}
               </p>
             )}
             {rows.map((r, i) => (
@@ -158,13 +168,12 @@ export default function SuspectsPage() {
             <div className="flex h-full flex-col items-center justify-center px-8 py-24 text-center">
               <Phone className="size-8 text-neutral-200" />
               <p className="mt-4 max-w-xs text-[13.5px] leading-[1.6] text-neutral-500">
-                Select a suspect for the full dossier — subscriber record, verified address, accounts,
-                money flow and cross-FIR history.
+                {t("suspects.emptyHint")}
               </p>
             </div>
           ) : loading ? (
             <div className="flex items-center gap-2 px-8 py-16 text-[13px] text-neutral-400">
-              <Loader2 className="size-4 animate-spin" /> Reading dossier…
+              <Loader2 className="size-4 animate-spin" /> {t("suspects.readingDossier")}
             </div>
           ) : dossier ? (
             <div className="px-6 py-6">
@@ -187,12 +196,12 @@ export default function SuspectsPage() {
                     <span className="flex items-center gap-1"><Phone className="size-3" /> {dossier.phone}</span>
                     <span className="flex items-center gap-1"><MapPin className="size-3" /> {dossier.city}</span>
                     <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10.5px] font-medium">
-                      {dossier.known ? "subscriber on record" : "no subscriber record"}
+                      {dossier.known ? t("suspects.onRecord") : t("suspects.noRecord")}
                     </span>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-400">Risk</p>
+                  <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-400">{t("suspects.risk")}</p>
                   <p className={cn(
                     "mt-1 text-[32px] font-medium tabular-nums leading-none tracking-[-0.03em]",
                     dossier.risk >= 70 ? "text-[#c64e27]" : dossier.risk >= 45 ? "text-[#c98a2b]" : "text-[#2f7c53]",
@@ -205,10 +214,10 @@ export default function SuspectsPage() {
               {dossier.metrics && (
                 <div className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
                   {[
-                    { k: "Calls / partners", v: dossier.metrics.weightedDegree },
-                    { k: "Direct partners", v: dossier.metrics.degree },
-                    { k: "Betweenness", v: Math.round(dossier.metrics.betweenness * 100) / 100 },
-                    { k: "PageRank", v: Math.round(dossier.metrics.pagerank * 10000) / 10000 },
+                    { k: t("suspects.callsPartners"), v: dossier.metrics.weightedDegree },
+                    { k: t("suspects.directPartners"), v: dossier.metrics.degree },
+                    { k: t("suspects.betweenness"), v: Math.round(dossier.metrics.betweenness * 100) / 100 },
+                    { k: t("suspects.pagerank"), v: Math.round(dossier.metrics.pagerank * 10000) / 10000 },
                   ].map((m) => (
                     <div key={m.k} className="rounded-2xl bg-neutral-50 px-3.5 py-3">
                       <p className="text-[17px] font-medium tabular-nums leading-none tracking-[-0.02em] text-neutral-950">{m.v}</p>
@@ -222,27 +231,27 @@ export default function SuspectsPage() {
 
               <div className="grid gap-6 sm:grid-cols-2">
                 <div>
-                  <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Money flow</p>
+                  <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">{t("suspects.moneyFlow")}</p>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between rounded-2xl border border-neutral-200/70 px-3.5 py-2.5">
-                      <span className="text-[12px] text-neutral-500">Inflow</span>
+                      <span className="text-[12px] text-neutral-500">{t("suspects.inflow")}</span>
                       <span className="text-[12.5px] font-semibold tabular-nums text-neutral-900">
                         ₹{dossier.money.inflow.toLocaleString("en-IN")}
                       </span>
                     </div>
                     <div className="flex items-center justify-between rounded-2xl border border-neutral-200/70 px-3.5 py-2.5">
-                      <span className="text-[12px] text-neutral-500">Outflow</span>
+                      <span className="text-[12px] text-neutral-500">{t("suspects.outflow")}</span>
                       <span className="text-[12.5px] font-semibold tabular-nums text-neutral-900">
                         ₹{dossier.money.outflow.toLocaleString("en-IN")}
                       </span>
                     </div>
                     <div className="flex items-center justify-between rounded-2xl border border-neutral-200/70 px-3.5 py-2.5">
-                      <span className="text-[12px] text-neutral-500">Transactions</span>
+                      <span className="text-[12px] text-neutral-500">{t("suspects.transactions")}</span>
                       <span className="text-[12.5px] font-semibold tabular-nums text-neutral-900">{dossier.money.txns}</span>
                     </div>
                   </div>
 
-                  <p className="mb-2.5 mt-5 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Accounts</p>
+                  <p className="mb-2.5 mt-5 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">{t("suspects.accounts")}</p>
                   <div className="space-y-2">
                     {(dossier.bankAccounts ?? []).map((a, i) => (
                       <div key={i} className="rounded-2xl border border-neutral-200/70 px-3.5 py-2.5">
@@ -260,7 +269,7 @@ export default function SuspectsPage() {
                   {dossier.firs.length > 0 && (
                     <>
                       <p className="mb-2.5 mt-5 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
-                        Linked FIRs <span className="normal-case text-neutral-300">· click to reconstruct</span>
+                        {t("suspects.linkedFirs")} <span className="normal-case text-neutral-300">{t("suspects.clickReconstruct")}</span>
                       </p>
                       <div className="space-y-1.5">
                         {dossier.firs.map((f) => (
@@ -283,7 +292,7 @@ export default function SuspectsPage() {
 
                 <div>
                   <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
-                    Top contacts <span className="normal-case text-neutral-300">· click to open</span>
+                    {t("suspects.topContacts")} <span className="normal-case text-neutral-300">{t("suspects.clickOpen")}</span>
                   </p>
                   <div className="space-y-1.5">
                     {dossier.topContacts.slice(0, 6).map((c, i) => (
@@ -294,11 +303,11 @@ export default function SuspectsPage() {
                         className="flex w-full items-center justify-between rounded-2xl px-3.5 py-2 text-[12.5px] transition-colors hover:bg-neutral-50"
                       >
                         <span className="font-medium text-neutral-800">{c.name}</span>
-                        <span className="tabular-nums text-neutral-400">{c.calls} calls</span>
+                        <span className="tabular-nums text-neutral-400">{c.calls} {t("dash.calls")}</span>
                       </button>
                     ))}
                     {dossier.topContacts.length === 0 && (
-                      <p className="px-3.5 text-[12px] text-neutral-400">No confirmed contact pairs yet.</p>
+                      <p className="px-3.5 text-[12px] text-neutral-400">{t("suspects.noContacts")}</p>
                     )}
                   </div>
                 </div>
@@ -309,20 +318,20 @@ export default function SuspectsPage() {
                   href={`/network?focus=${encodeURIComponent(dossier.key)}`}
                   className="inline-flex h-9 items-center gap-1.5 rounded-full bg-neutral-950 px-4 text-[12.5px] font-semibold text-white transition-colors hover:bg-neutral-800"
                 >
-                  Locate in graph
+                  {t("suspects.locateInGraph")}
                   <ArrowUpRight className="size-3.5" />
                 </Link>
                 <Link
                   href={`/ask?q=${encodeURIComponent(`Tell me about ${dossier.name}`)}`}
                   className="inline-flex h-9 items-center gap-1.5 rounded-full border border-neutral-300 px-4 text-[12.5px] font-semibold text-neutral-800 transition-colors hover:border-neutral-950"
                 >
-                  Ask about {dossier.name.split(" ")[0]}
+                  {t("suspects.askAbout")} {dossier.name.split(" ")[0]}
                   <ArrowUpRight className="size-3.5" />
                 </Link>
               </div>
             </div>
           ) : (
-            <p className="px-8 py-16 text-[13px] text-neutral-400">Dossier not found.</p>
+            <p className="px-8 py-16 text-[13px] text-neutral-400">{t("suspects.notFound")}</p>
           )}
         </div>
       </div>

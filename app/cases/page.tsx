@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { WsShell } from "@/components/ws/ws-shell";
 import { Loader2, FileText, Users, ArrowUpRight, Calendar, MessagesSquare } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 interface CaseSummary {
   id: string;
@@ -15,6 +16,7 @@ interface CaseSummary {
 }
 
 export default function CasesPage() {
+  const { t } = useI18n();
   const [cases, setCases] = useState<CaseSummary[] | null>(null);
 
   useEffect(() => {
@@ -23,12 +25,12 @@ export default function CasesPage() {
 
   return (
     <WsShell
-      title="Cases"
-      sub="Each case groups the FIRs, suspects, evidence and network for one connected investigation"
+      title={t("cases.title")}
+      sub={t("cases.sub")}
     >
       {!cases ? (
         <p className="flex items-center gap-2 px-1 py-6 text-[12.5px] text-neutral-400">
-          <Loader2 className="size-3.5 animate-spin" /> Grouping FIRs into cases…
+          <Loader2 className="size-3.5 animate-spin" /> {t("cases.loading")}
         </p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -59,11 +61,11 @@ export default function CasesPage() {
                 <div className="flex items-center gap-4 text-[11.5px] text-neutral-500">
                   <span className="flex items-center gap-1.5">
                     <FileText className="size-3.5 text-neutral-400" />
-                    {c.firCount} FIR{c.firCount === 1 ? "" : "s"}
+                    {c.firCount} {t("cases.firs")}{c.firCount === 1 ? "" : "s"}
                   </span>
                   <span className="flex items-center gap-1.5">
                     <Users className="size-3.5 text-neutral-400" />
-                    {c.suspectCount} suspect{c.suspectCount === 1 ? "" : "s"}
+                    {c.suspectCount} {t("cases.suspects")}{c.suspectCount === 1 ? "" : "s"}
                   </span>
                   <span className="ml-auto flex items-center gap-1.5 tabular-nums">
                     <Calendar className="size-3.5 text-neutral-400" />
@@ -77,7 +79,7 @@ export default function CasesPage() {
                 className="mt-auto flex items-center justify-center gap-1.5 rounded-xl border border-neutral-200 py-2 text-[12px] font-semibold text-neutral-700 transition-colors hover:border-neutral-950 hover:bg-neutral-950 hover:text-white"
               >
                 <MessagesSquare className="size-3.5" />
-                Chat with case
+                {t("cases.chat")}
               </Link>
             </div>
           ))}

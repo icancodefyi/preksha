@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { WsShell } from "@/components/ws/ws-shell";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import {
   FileText,
   Phone,
@@ -53,6 +54,7 @@ interface DossierLite {
 }
 
 export default function DashboardPage() {
+  const { t } = useI18n();
   const [overview, setOverview] = useState<Overview | null>(null);
   const [kingpin, setKingpin] = useState<DossierLite | null>(null);
   const [disruptionPct, setDisruptionPct] = useState<number | null>(null);
@@ -74,12 +76,12 @@ export default function DashboardPage() {
 
   const cards = stats
     ? [
-        { label: "FIRs linked", value: stats.firs.toLocaleString(), icon: FileText },
-        { label: "CDR calls", value: stats.calls.toLocaleString(), icon: Phone },
-        { label: "Financial records", value: stats.financial.toLocaleString(), icon: Landmark },
-        { label: "Tower dumps", value: stats.towerDumps.toLocaleString(), icon: RadioTower },
-        { label: "Subscribers", value: stats.subscribers.toLocaleString(), icon: Users },
-        { label: "Money moved", value: `₹${stats.moneyMoved.toLocaleString("en-IN")}`, icon: IndianRupee },
+        { label: t("dash.firsLinked"), value: stats.firs.toLocaleString(), icon: FileText },
+        { label: t("dash.cdrCalls"), value: stats.calls.toLocaleString(), icon: Phone },
+        { label: t("dash.financialRecords"), value: stats.financial.toLocaleString(), icon: Landmark },
+        { label: t("dash.towerDumps"), value: stats.towerDumps.toLocaleString(), icon: RadioTower },
+        { label: t("dash.subscribers"), value: stats.subscribers.toLocaleString(), icon: Users },
+        { label: t("dash.moneyMoved"), value: `₹${stats.moneyMoved.toLocaleString("en-IN")}`, icon: IndianRupee },
       ]
     : [];
 
@@ -90,10 +92,10 @@ export default function DashboardPage() {
   };
 
   return (
-    <WsShell title="Investigation overview" sub={stats ? `${stats.firs} FIRs · ${stats.calls.toLocaleString()} calls cross-referenced` : undefined}>
+    <WsShell title={t("dash.title")} sub={stats ? `${stats.firs} FIRs · ${stats.calls.toLocaleString()} calls cross-referenced` : undefined}>
       <div className="space-y-8">
         {!overview && (
-          <p className="text-[13px] text-neutral-400">Loading evidence graph…</p>
+          <p className="text-[13px] text-neutral-400">{t("dash.loading")}</p>
         )}
 
         {stats && (
@@ -120,13 +122,13 @@ export default function DashboardPage() {
               <div className="rounded-3xl border border-neutral-200/80 bg-white shadow-[0_1px_2px_rgba(16,15,25,0.04),0_12px_32px_-12px_rgba(16,15,25,0.10)] lg:col-span-2">
                 <div className="flex items-center justify-between border-b border-neutral-100 px-6 py-4">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
-                    Network principal
+                    {t("dash.networkPrincipal")}
                   </p>
                   <Link
                     href={`/suspects?focus=${encodeURIComponent(kingpin?.name ?? "")}`}
                     className="group inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-3 py-1 text-[12px] font-medium text-neutral-600 transition-colors hover:border-neutral-400 hover:text-neutral-900"
                   >
-                    Open dossier
+                    {t("dash.openDossier")}
                     <ArrowUpRight className="size-3 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                   </Link>
                 </div>
@@ -144,7 +146,7 @@ export default function DashboardPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-400">Risk score</p>
+                        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-400">{t("dash.riskScore")}</p>
                         <p className="mt-1 text-[32px] font-medium tabular-nums leading-none tracking-[-0.03em] text-neutral-950">
                           {kingpin.risk}
                         </p>
@@ -159,32 +161,32 @@ export default function DashboardPage() {
                         <p className="text-[18px] font-medium tabular-nums tracking-[-0.02em] text-neutral-950">
                           {kingpin.firCount}
                         </p>
-                        <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">FIRs linked</p>
+                        <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">{t("dash.firsLinked")}</p>
                       </div>
                       <div className="rounded-2xl bg-neutral-50 px-4 py-3">
                         <p className="text-[18px] font-medium tabular-nums tracking-[-0.02em] text-neutral-950">
                           {disruptionPct ?? "—"}
                           {disruptionPct !== null ? "%" : ""}
                         </p>
-                        <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">Network fragmentation</p>
+                        <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">{t("dash.networkFragmentation")}</p>
                       </div>
                       <div className="rounded-2xl bg-neutral-50 px-4 py-3">
                         <p className="text-[18px] font-medium tabular-nums tracking-[-0.02em] text-neutral-950">
                           {kingpin.metrics ? Math.round(kingpin.metrics.betweenness * 100) / 100 : "—"}
                         </p>
-                        <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">Betweenness</p>
+                        <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">{t("dash.betweenness")}</p>
                       </div>
                       <div className="rounded-2xl bg-neutral-50 px-4 py-3">
                         <p className="text-[18px] font-medium tabular-nums tracking-[-0.02em] text-neutral-950">
                           {kingpin.money.inflow.toLocaleString("en-IN")}
                         </p>
-                        <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">Inflow (₹)</p>
+                        <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-400">{t("dash.inflow")}</p>
                       </div>
                     </div>
 
                     <div>
                       <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
-                        Warm contacts
+                        {t("dash.warmContacts")}
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {kingpin.topContacts.slice(0, 5).map((c, i) => (
@@ -194,7 +196,7 @@ export default function DashboardPage() {
                             className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-[12px] font-medium text-neutral-700 transition-colors hover:border-neutral-950 hover:text-neutral-950"
                           >
                             {c.name}
-                            <span className="ml-1.5 tabular-nums text-neutral-400">{c.calls} calls</span>
+                            <span className="ml-1.5 tabular-nums text-neutral-400">{c.calls} {t("dash.calls")}</span>
                           </Link>
                         ))}
                       </div>
@@ -209,11 +211,11 @@ export default function DashboardPage() {
               <div className="rounded-3xl border border-neutral-200/80 bg-white">
                 <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
-                    Pattern alerts
+                    {t("dash.patternAlerts")}
                   </p>
                   <span className="flex items-center gap-1.5 text-[11px] tabular-nums text-neutral-400">
                     <Activity className="size-3.5" />
-                    {stats.activeAlerts} high
+                    {stats.activeAlerts} {t("dash.high")}
                   </span>
                 </div>
                 <div className="space-y-1 px-3 py-3">
@@ -244,7 +246,7 @@ export default function DashboardPage() {
                             {a.severity}
                           </span>
                           {a.evidence.length > 0 && (
-                            <span className="text-[10px] text-neutral-300">{a.evidence.length} evidence item{a.evidence.length === 1 ? "" : "s"}</span>
+                            <span className="text-[10px] text-neutral-300">{a.evidence.length} {t("dash.evidenceItems")}{a.evidence.length === 1 ? "" : "s"}</span>
                           )}
                         </div>
                         <p className="mt-1 truncate text-[13px] font-medium tracking-[-0.01em] text-neutral-900">
@@ -270,15 +272,15 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <p className="text-[14px] font-semibold tracking-[-0.01em] text-[#a8401f]">
-                      Active case · FIR 0666/2025 — kidnapping
+                      {t("dash.activeCase")} · FIR 0666/2025 — kidnapping
                     </p>
                     <p className="mt-0.5 text-[12px] text-[#b2670b]">
-                      Burner phone 9890919293 co-located with two known network lines this month.
+                      {t("dash.activeCaseDetail")}
                     </p>
                   </div>
                 </div>
                 <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#a8401f]">
-                  Reconstruct
+                  {t("dash.reconstruct")}
                   <ArrowUpRight className="size-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                 </span>
               </Link>
