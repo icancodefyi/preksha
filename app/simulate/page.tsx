@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import SimScene, { type SimController } from "@/components/sim/SimScene";
 import type { SimData } from "@/lib/graph/simulation";
+import { useI18n } from "@/lib/i18n";
 
 interface FirSummary {
   idx: number;
@@ -35,14 +36,24 @@ const NARRATION_SEGMENTS: { t: number; key: string }[] = [
 const NARRATION_AUDIO: Record<string, Record<string, string>> = {
   en: Object.fromEntries(NARRATION_SEGMENTS.map((s) => [s.key, `/audio/narration/en/${s.key}.mp3`])),
   hi: Object.fromEntries(NARRATION_SEGMENTS.map((s) => [s.key, `/audio/narration/hi/${s.key}.mp3`])),
+  mr: Object.fromEntries(NARRATION_SEGMENTS.map((s) => [s.key, `/audio/narration/mr/${s.key}.mp3`])),
   hinglish: Object.fromEntries(NARRATION_SEGMENTS.map((s) => [s.key, `/audio/narration/hinglish/${s.key}.mp3`])),
 };
 
-const LANG_LABEL: Record<string, string> = { en: "EN", hi: "हिंदी", hinglish: "हिंग्लिश" };
-const LANG_ORDER: string[] = ["en", "hi", "hinglish"];
+const LANG_LABEL: Record<string, string> = { en: "EN", hi: "हिंदी", mr: "मराठी", hinglish: "हिंग्लिश" };
+const LANG_ORDER: string[] = ["en", "hi", "mr", "hinglish"];
 
 export default function SimulatePage() {
+  return (
+    <Suspense fallback={null}>
+      <SimulatePageInner />
+    </Suspense>
+  );
+}
+
+function SimulatePageInner() {
   const router = useRouter();
+  const { lang: globalLang } = useI18n();
   const searchParams = useSearchParams();
   const firIdx = useMemo(() => {
     const f = searchParams.get("fir");
@@ -155,8 +166,15 @@ export default function SimulatePage() {
   // different case's replay would be actively wrong).
   const isBespoke = !!data?.bespoke;
   const [voiceOn, setVoiceOn] = useState(true);
-  const [lang, setLang] = useState<string>("en");
+  const [lang, setLang] = useState<string>(globalLang);
   const [narrationMissing, setNarrationMissing] = useState(false);
+  // Narration defaults to the app's selected language, but can be overridden
+  // per-replay via the toggle in the control bar.
+  useEffect(() => {
+    // Deferred a tick: setLang() sets state, and the repo's existing focus/select
+    // effects do the same via queueMicrotask to avoid setState-in-effect.
+    queueMicrotask(() => setLang(globalLang));
+  }, [globalLang]);
   useEffect(() => {
     if (!isBespoke || !voiceOn || !playing) return;
     let seg = NARRATION_SEGMENTS[0];
