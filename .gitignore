@@ -28,6 +28,10 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# raw camera footage (keep repo lean — web uses compressed mp4s)
+public/assets/gallary/*.MOV
+public/assets/gallary/*.mov
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)

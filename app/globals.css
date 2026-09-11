@@ -1337,3 +1337,141 @@ body {
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ============================================================
+   GALLERY — framer-motion card deck
+   ============================================================ */
+.gal-head {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  max-width: 1240px;
+  margin: 0 auto clamp(2rem, 5vw, 3.5rem);
+}
+
+@media (min-width: 900px) {
+  .gal-head {
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+  }
+}
+
+.gal-head .land-sub {
+  margin: 0;
+}
+
+.gal-stage {
+  position: relative;
+  width: 100%;
+  max-width: 680px;
+  aspect-ratio: 4 / 3;
+  margin: 0 auto;
+}
+
+.gal-frame {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  border: 1px solid var(--preksha-line-strong);
+  overflow: hidden;
+  background: #000;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 24px 60px -20px rgba(0, 0, 0, 0.55);
+  cursor: default;
+  user-select: none;
+  will-change: transform, opacity;
+}
+
+.gal-frame--ghost {
+  pointer-events: none;
+}
+
+.gal-frame--front {
+  z-index: 60;
+}
+
+.gal-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.gal-badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  font-family: "Alliance No.1", sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgba(15, 15, 16, 0.72);
+  backdrop-filter: blur(8px);
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.gal-caption {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 48px 20px 18px;
+  font-size: clamp(0.82rem, 1.1vw, 0.95rem);
+  font-weight: 500;
+  color: #fff;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+}
+
+.gal-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: clamp(1.2rem, 3vw, 2rem);
+}
+
+.gal-arrow {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--preksha-line);
+  background: var(--preksha-bg);
+  color: var(--preksha-ink);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.gal-arrow:hover {
+  border-color: var(--preksha-line-strong);
+  background: var(--preksha-dark);
+  color: #fff;
+}
+
+.gal-dots {
+  display: flex;
+  gap: 7px;
+}
+
+.gal-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--preksha-line);
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.gal-dot.is-active {
+  background: var(--preksha-line-strong);
+  border-color: var(--preksha-line-strong);
+}

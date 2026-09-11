@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Nav from "./nav";
 import Carousel from "./carousel";
+import Gallery from "./gallery";
 import HorizontalFeed from "../components/intelligence/HorizontalFeed";
 import LogoTicker from "../components/LogoTicker";
 import { useEffect, useRef, type VideoHTMLAttributes, type ReactNode } from "react";
@@ -83,6 +84,9 @@ export default function Home() {
 
       {/* ——— Cyber cell logos ——— */}
       <LogoTicker />
+
+      {/* ——— Gallery ——— */}
+      <Gallery />
 
       {/* ——— Intelligence Feed ——— */}
       <section className="land-section" style={{ paddingTop: 0, paddingBottom: 0 }}>
