@@ -732,13 +732,14 @@ export default function SimScene({
     const rim = new THREE.DirectionalLight(rimColor, 0.6);
     rim.position.set(-12, 8, -14);
     scene.add(rim);
-    // interior lights (inside the room, so they only reach the room once it's sealed)
+    // interior lights — gated to the interior shot only; intensity 0 everywhere
+    // else so they never blast the exterior scene building.
     const roomAmbient = new THREE.AmbientLight(0xfff2df, 0);
     scene.add(roomAmbient);
-    const roomLight = new THREE.PointLight(0xffd9a0, 260, 40, 1.5);
+    const roomLight = new THREE.PointLight(0xffd9a0, 0, 40, 1.5);
     roomLight.position.set(data.scene.x, 4.0, data.scene.z);
     scene.add(roomLight);
-    const roomFill = new THREE.PointLight(0xbfd4ff, 140, 40, 1.5);
+    const roomFill = new THREE.PointLight(0xbfd4ff, 0, 40, 1.5);
     roomFill.position.set(data.scene.x, 3.0, data.scene.z - 3);
     scene.add(roomFill);
 
@@ -861,6 +862,7 @@ export default function SimScene({
     let riderA!: THREE.Group;
     let pillion!: THREE.Group;
     let riderB!: THREE.Group;
+    let copsGroup!: THREE.Group;
 
     if (data.bespoke) {
       // --- the store (exterior shell, hidden during the interior cut)
@@ -944,10 +946,15 @@ export default function SimScene({
       bikeA.plate.group.position.set(0, 0.42, -0.86);
       bikeA.group.add(bikeA.plate.group);
       loadModel("/models/suzuki.glb", 1.0, (m) => bikeA.group.add(m));
-      bikeB = makeBike("#1a1420", "MH 01 CD 5678", null);
+      bikeB = {
+        group: new THREE.Group(),
+        plate: makePlate("MH 01 CD 5678", null),
+      };
       bikeB.group.position.set(data.scene.x + 2.4, 0, data.scene.z + 1.5);
       bikeB.group.rotation.y = -0.5;
-      bikeB.group.scale.setScalar(0.9);
+      bikeB.plate.group.position.set(0, 0.42, -0.86);
+      bikeB.group.add(bikeB.plate.group);
+      loadModel("/models/suzuki.glb", 1.0, (m) => bikeB.group.add(m));
       scene.add(bikeA.group, bikeB.group);
 
       riderA = makeRider("#c07f1d"); // Mohammed
@@ -965,7 +972,7 @@ export default function SimScene({
 
       // street dressing — a small parked police presence across from the
       // store, visible in the wide establishing/escape shots
-      const copsGroup = new THREE.Group();
+      copsGroup = new THREE.Group();
       copsGroup.position.set(data.scene.x + 5.5, 0, data.scene.z - 3.2);
       copsGroup.rotation.y = -0.6;
       scene.add(copsGroup);
@@ -1369,18 +1376,12 @@ export default function SimScene({
       if (data.bespoke) {
         store.visible = wide || escape;
         room.visible = interior;
-        roomAmbient.intensity = interior ? 0.9 : 0;
+        roomAmbient.intensity = interior ? 0.6 : 0;
+        roomLight.intensity = interior ? 190 : 0;
+        roomFill.intensity = interior ? 95 : 0;
         bikeA.group.visible = wide || escape;
         bikeB.group.visible = wide || (escape && !plate);
-        (window as unknown as { __dbg: unknown }).__dbg = {
-          t, interior, roomVisible: room.visible,
-          camPos: camera.position.toArray().map((n) => +n.toFixed(2)),
-          camTgt: controls.target.toArray().map((n) => +n.toFixed(2)),
-          roomPos: room.position.toArray(),
-          roomLightPos: roomLight.position.toArray(),
-          roomLightIntensity: roomLight.intensity,
-          ambIntensity: roomAmbient.intensity,
-        };
+        copsGroup.visible = !interior;
       }
     }
 
