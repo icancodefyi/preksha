@@ -1,18 +1,17 @@
-import { answerChat, SUGGESTED, type AskRequest } from "@/lib/rag/pipeline";
-import type { ChatTurn } from "@/lib/rag/chat";
+import { answerChat, SUGGESTED } from "@/lib/rag/pipeline";
+import type { ChatRequest, ChatTurn } from "@/lib/rag/types";
 
-// Deterministic-first RAG, fully in-app (no separate Python service).
-// Accepts GET ?q= (backwards compatible) and POST { question, history } for
-// multi-turn chat. The pipeline resolves pronouns against the conversation,
-// answers known analytical shapes from the graph engine instantly, and only
-// uses a grounded, citation-validated LLM for free-form questions — with a
-// hard refusal when no evidence matches. Zero hallucination by construction.
+// RAG endpoint. Accepts GET ?q=&case= (backwards compatible) and
+// POST { question, history, case } for multi-turn, case-scoped chat.
+// The pipeline embeds the question, cosine-searches the corpus (scoped to the
+// case's FIRs when `case` is set), grounds Groq over the retrieved evidence,
+// validates citations and refuses when nothing matches.
 
 async function handle(q: string, history: ChatTurn[], caseId?: string) {
   if (!q.trim()) {
     return Response.json({ answer: "", sources: [], suggested: SUGGESTED, confidence: "low", trace: [] });
   }
-  const req: AskRequest = { question: q, history, caseId };
+  const req: ChatRequest = { question: q, history, caseId };
   const result = await answerChat(req);
   return Response.json(result);
 }
@@ -29,6 +28,9 @@ export async function POST(request: Request) {
     const body = (await request.json()) as { question?: string; history?: ChatTurn[]; case?: string };
     return handle(body.question ?? "", body.history ?? [], body.case);
   } catch {
-    return Response.json({ answer: "Invalid request body.", sources: [], suggested: SUGGESTED, confidence: "low", trace: [] }, { status: 400 });
+    return Response.json(
+      { answer: "Invalid request body.", sources: [], suggested: SUGGESTED, confidence: "low", trace: [] },
+      { status: 400 },
+    );
   }
 }

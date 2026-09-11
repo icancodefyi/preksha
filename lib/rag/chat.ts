@@ -1,38 +1,19 @@
-// Chat context + coreference resolution.
-// Follow-up questions like "his details" / "where did he call from" must
-// resolve the pronoun against the previous turn instead of hitting a generic
-// retrieval and returning the wrong record (the classic "history is broken"
-// failure mode). This is deterministic, testable, and never guesses an entity
-// that was not already stated in the conversation.
-
+// Conversation context + coreference resolution. Follow-ups like "his details"
+// must resolve the pronoun to the entity from the previous turn *before*
+// retrieval, otherwise the vector search has nothing meaningful to match and
+// the model is grounded on the wrong evidence. Deterministic and testable.
 import { networkMembers, burner } from "@/lib/data/seed";
-
-export interface ChatTurn {
-  role: "user" | "assistant";
-  content: string;
-}
+import type { ChatTurn } from "./types";
 
 export interface ResolvedSubject {
-  key?: string; // network-member key (or "burner")
+  key?: string;
   name?: string;
-  role?: string; // "kingpin" | "burner" | etc.
+  role?: string;
 }
 
 const PRONOUN_RE = /\b(he|she|him|her|his|hers|they|them|their|it)\b/i;
+const ROLE_TERMS = ["kingpin", "burner", "courier", "financier", "executor", "distributor", "operator", "mule account", "cashier"];
 
-const ROLE_TERMS = [
-  "kingpin",
-  "burner",
-  "courier",
-  "financier",
-  "executor",
-  "distributor",
-  "operator",
-  "mule account",
-  "cashier",
-];
-
-// Ordered candidate entities — names, aliases, and the burner.
 const ENTITIES: { name: string; key: string }[] = [
   ...networkMembers.flatMap((m) => [
     { name: m.name.toLowerCase(), key: m.key },
@@ -40,7 +21,7 @@ const ENTITIES: { name: string; key: string }[] = [
       ? m.alias
           .split(/[/,|]/)
           .map((a) => a.trim().toLowerCase())
-          .filter(Boolean)
+          .filter((a) => a.length >= 3) // drop single/double-letter aliases — they match everything
           .map((a) => ({ name: a, key: m.key }))
       : []),
   ]),
@@ -48,25 +29,23 @@ const ENTITIES: { name: string; key: string }[] = [
   { name: burner.name.toLowerCase(), key: "burner" },
 ];
 
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function findEntity(text: string): ResolvedSubject {
   const t = text.toLowerCase();
-  for (const e of ENTITIES) if (t.includes(e.name)) return { key: e.key, name: e.name };
+  for (const e of ENTITIES) {
+    if (new RegExp(`\\b${escapeRe(e.name)}\\b`).test(t)) return { key: e.key, name: e.name };
+  }
   for (const r of ROLE_TERMS) if (t.includes(r)) return { role: r };
   return {};
 }
 
-/**
- * Resolve what the question is *about*.
- * 1. If the question itself names a person/role, use that.
- * 2. Otherwise, if it contains a pronoun, look back through the assistant
- *    turns for the most recent named entity and carry it forward.
- */
 export function resolveSubject(question: string, history: ChatTurn[]): ResolvedSubject {
   const self = findEntity(question);
   if (self.key || self.role) return self;
-
   if (!PRONOUN_RE.test(question)) return {};
-
   for (let i = history.length - 1; i >= 0; i--) {
     const turn = history[i];
     if (turn.role !== "assistant") continue;
@@ -76,14 +55,11 @@ export function resolveSubject(question: string, history: ChatTurn[]): ResolvedS
   return {};
 }
 
-/** True if the question asks for a profile/details/history of the subject. */
-export function wantsProfile(question: string): boolean {
-  return /\b(details?|profile|about|who is|tell me (about|more)|information|info|history|crimes|involved|record|score|risk)\b/i.test(
-    question,
-  );
-}
-
-/** Last N turns, trimmed to keep the LLM context tight and fast. */
-export function historyWindow(history: ChatTurn[], n = 6): ChatTurn[] {
-  return history.slice(-n);
+/** Rewrite the query with the resolved subject so retrieval + generation see it. */
+export function withResolvedSubject(question: string, history: ChatTurn[]): string {
+  const s = resolveSubject(question, history);
+  if (s.name && !question.toLowerCase().includes(s.name)) return `${s.name} — ${question}`;
+  if (s.key === "burner" && !question.toLowerCase().includes("burner")) return `the burner phone — ${question}`;
+  if (s.role && !question.toLowerCase().includes(s.role)) return `${s.role} — ${question}`;
+  return question;
 }

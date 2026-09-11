@@ -1,26 +1,23 @@
-// "Ask Preksha" pipeline — deterministic-first, history-aware, zero-hallucination.
+// "Ask Preksha" RAG pipeline — retrieval → grounded generation → validation.
 //
-// Design (mirrors the vcet-hackathon RAG philosophy):
-//   1. Resolve the subject from the conversation (so "his details" -> the
-//      person named in the previous answer, never a random record).
-//   2. Answer known analytical question shapes deterministically from the
-//      graph engine — instant and mathematically grounded, no model in the loop.
-//   3. Only for genuinely free-form questions, optionally phrase the answer
-//      with Groq over *retrieved* evidence, then strip any citation the model
-//      invented and refuse if nothing matched — the model never originates facts.
-//
-// The LLM path is an enhancement, not a requirement: with no GROQ key the
-// pipeline still answers everything deterministically.
+// Flow per question:
+//   1. resolve the case scope (case-<idx> -> its FIR numbers)
+//   2. embed the question (Jina)
+//   3. cosine-search the corpus (case-scoped when a case is set)
+//   4. score gate → refuse if nothing relevant
+//   5. Groq generates a grounded answer over the retrieved evidence only
+//   6. validate citations → strip any the model invented
+// The deterministic graph engine is kept ONLY as a last-resort fallback when
+// the RAG keys are missing, so the demo never hard-fails.
 
-import {
-  answerQuestion,
-  dossier,
-  disruptionRanking,
-  rankedSuspects,
-  type Answer,
-} from "@/lib/graph/enrich";
-import { firs, discoveries } from "@/lib/data/seed";
-import { resolveSubject, wantsProfile, historyWindow, type ChatTurn } from "./chat";
+import { embedQuery } from "./embeddings";
+import { search } from "./store";
+import { generateAnswer } from "./llm";
+import { scoreGate, verifyCitations } from "./hallucination-control";
+import { withResolvedSubject } from "./chat";
+import { answerQuestion } from "@/lib/graph/enrich";
+import { getCase } from "@/lib/data/cases";
+import type { ChatRequest, ChatResult, TraceStep } from "./types";
 
 export const SUGGESTED = [
   "Who is the kingpin?",
@@ -31,180 +28,74 @@ export const SUGGESTED = [
   "What happened before the Dadar robbery?",
 ];
 
-export interface AskRequest {
-  question: string;
-  history?: ChatTurn[];
-  caseId?: string;
+function resolveCase(caseId?: string): { firNos: string[]; title: string } | undefined {
+  if (!caseId) return undefined;
+  const c = getCase(caseId);
+  if (!c) return undefined;
+  return { firNos: c.firs.map((f) => f.fir_no), title: c.title };
 }
 
-// ---------------------------------------------------------------------------
-// Deterministic answers for known shapes
-// ---------------------------------------------------------------------------
-
-function profileAnswer(key: string): Answer {
-  const d = dossier(key);
-  if (!d) {
-    return { answer: `I couldn't find a profile for "${key}".`, sources: [], suggested: SUGGESTED, confidence: "low", trace: [] };
-  }
-  const firLines = d.firs
-    .map((f) => `- ${f.fir_no} — ${f.title} (${f.year})`)
-    .join("\n");
-  const contacts = d.topContacts
-    .map((c) => `${c.name} (${c.calls} calls)`)
-    .join(", ");
-  const metrics = d.metrics
-    ? `degree ${d.metrics.degree} · betweenness ${d.metrics.betweenness} · PageRank ${d.metrics.pagerank} · community ${d.metrics.community}`
-    : "no graph metrics";
-  const money = d.money ? `₹${d.money.inflow.toLocaleString("en-IN")} inflow · ₹${d.money.outflow.toLocaleString("en-IN")} outflow` : "no financial records";
-
-  return {
-    answer:
-      `**${d.name}** (${d.alias}) — ${d.role}, ${d.cluster} cluster, ${d.city}.\n\n` +
-      `- Phone: ${d.phone}${d.phone2 ? ` · secondary ${d.phone2}` : ""}\n` +
-      `- Risk score: **${d.risk}/100**\n` +
-      `- Graph: ${metrics}\n` +
-      `- Money: ${money}\n` +
-      `- Top contacts: ${contacts}\n` +
-      `- FIRs (${d.firCount}):\n${firLines || "  none"}`,
-    sources: [
-      { label: `Profile: ${d.name}`, ref: d.key },
-      ...d.firs.map((f) => ({ label: `FIR ${f.fir_no}`, ref: f.fir_no })),
-    ],
-    suggested: SUGGESTED,
-    confidence: "high",
-    trace: [
-      { label: "Resolved subject", detail: d.name, ms: 30 },
-      { label: "Loaded dossier", detail: `${d.firCount} FIRs · ${d.topContacts.length} contacts`, ms: 60 },
-    ],
-  };
-}
-
-function arrestAnswer(): Answer {
-  const kp = rankedSuspects()[0];
-  const rank = disruptionRanking().slice(0, 3);
-  return {
-    answer:
-      `Arrest **${kp.name}** first (risk ${kp.risk}/100). Removing ${kp.name} fragments the largest component by ` +
-      `${disruptionRanking()[0].fragmentationPct}%. Next targets, in order: ${rank
-        .slice(1)
-        .map((d) => `${d.name} (${d.fragmentationPct}%)`)
-        .join(", ")}.`,
-    sources: [{ label: "Disruption ranking", ref: "disruptionRanking" }],
-    suggested: SUGGESTED,
-    confidence: "high",
-    trace: [
-      { label: "Computed betweenness", detail: "Brandes centrality over 44 links", ms: 40 },
-      { label: "Simulated removals", detail: "largest-component fragmentation", ms: 80 },
-    ],
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Optional grounded LLM over in-memory evidence (no external vector DB)
-// ---------------------------------------------------------------------------
-
-function corpusDocs(): { ref: string; label: string; text: string }[] {
-  const docs: { ref: string; label: string; text: string }[] = [];
-  for (const f of firs) docs.push({ ref: f.fir_no, label: `FIR ${f.fir_no}`, text: f.narrative });
-  for (const [key, d] of Object.entries(discoveries)) {
-    docs.push({ ref: `discovery:${key}`, label: `Finding: ${key.replace(/_/g, " ")}`, text: Object.values(d).join(". ") });
-  }
-  return docs;
-}
-
-function retrieve(q: string, topK = 4) {
-  const toks = q.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
-  const scored = corpusDocs().map((d) => {
-    const t = d.text.toLowerCase();
-    const hits = toks.filter((w) => t.includes(w)).length;
-    return { d, hits };
-  });
-  return scored
-    .filter((s) => s.hits > 0)
-    .sort((a, b) => b.hits - a.hits)
-    .slice(0, topK)
-    .map((s) => s.d);
-}
-
-async function groundedAnswer(question: string, history: ChatTurn[]): Promise<Answer> {
-  const docs = retrieve(question);
-  if (docs.length === 0) {
-    return {
-      answer: `I couldn't find any evidence matching "${question}" in the loaded case material — and I won't guess. Try one of the suggested questions.`,
-      sources: [],
-      suggested: SUGGESTED,
-      confidence: "low",
-      trace: [{ label: "Searched the corpus", detail: "0 matches — refusing to answer", ms: 30 }],
-    };
-  }
-
-  const evidenceBlock = docs.map((d) => `[${d.ref}] (${d.label})\n${d.text}`).join("\n\n---\n\n");
-
-  let text: string | null = null;
-  try {
-    const { generateGrounded } = await import("./groq");
-    const prior = historyWindow(history).map((t) => `${t.role}: ${t.content}`).join("\n");
-    text = (await generateGrounded(question, evidenceBlock, prior)).text;
-  } catch {
-    text = null; // no key / service down → fall through to deterministic phrasing
-  }
-
-  if (text) {
-    // Citation validation: drop any id the model cited that wasn't retrieved.
-    const retrievedIds = new Set(docs.map((d) => d.ref));
-    const cited = [...text.matchAll(/[[【]\s*([^\]】]+?)\s*[\]】]/g)]
-      .flatMap((m) => m[1].split(/\s*[;,]\s*/))
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const valid = cited.filter((id) => retrievedIds.has(id));
-    return {
-      answer: text,
-      sources: docs.filter((d) => valid.includes(d.ref)).map((d) => ({ label: d.label, ref: d.ref })),
-      suggested: SUGGESTED,
-      confidence: valid.length ? "high" : "medium",
-      trace: [
-        { label: "Searched the corpus", detail: `${docs.length} match${docs.length === 1 ? "" : "es"}`, ms: 30 },
-        { label: "Generated grounded answer", detail: "Groq over retrieved evidence", ms: 60 },
-        { label: "Validated citations", detail: `${valid.length} confirmed`, ms: 90 },
-      ],
-    };
-  }
-
-  // Deterministic phrasing of the retrieved evidence (no model).
-  return {
-    answer: `Based on the retrieved records: ${docs.map((d) => d.text).join(" ").slice(0, 400)}…`,
-    sources: docs.map((d) => ({ label: d.label, ref: d.ref })),
-    suggested: SUGGESTED,
-    confidence: "medium",
-    trace: [{ label: "Searched the corpus", detail: `${docs.length} matches`, ms: 30 }],
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Entry point
-// ---------------------------------------------------------------------------
-
-export async function answerChat(req: AskRequest): Promise<Answer> {
+export async function answerChat(req: ChatRequest): Promise<ChatResult> {
   const q = req.question.trim();
   const history = req.history ?? [];
+  const t0 = Date.now();
+  const trace: TraceStep[] = [];
+  const mark = (label: string, detail?: string) => trace.push({ label, detail, ms: Date.now() - t0 });
 
-  const subject = resolveSubject(q, history);
+  if (!q) return { answer: "", sources: [], suggested: SUGGESTED, confidence: "low", trace };
 
-  // 1. "details of <person>" (or a pronoun referring to a named person)
-  if (subject.key && wantsProfile(q)) return profileAnswer(subject.key);
-  if (subject.role === "kingpin" && wantsProfile(q)) {
-    const kp = rankedSuspects()[0];
-    return profileAnswer(kp.key);
+  const scope = resolveCase(req.caseId);
+
+  // Resolve pronouns against the conversation before retrieval, so a follow-up
+  // like "his details" searches for the actual person, not the word "his".
+  const resolvedQuestion = withResolvedSubject(q, history);
+
+  // Case-scoped chat: augment the query with the case title + FIR numbers so
+  // even a vague question ("what happened") anchors to this case's records.
+  const retrievalQuestion = scope
+    ? `${resolvedQuestion}. Case: ${scope.title} (${scope.firNos.join(", ")})`
+    : resolvedQuestion;
+
+  try {
+    const vector = await embedQuery(retrievalQuestion);
+    mark("Embedded the question", "Jina embeddings v3");
+
+    const hits = await search(vector, retrievalQuestion, 6, scope?.firNos);
+    mark(
+      "Retrieved evidence",
+      `${hits.length} passage${hits.length === 1 ? "" : "s"}${scope ? ` scoped to ${scope.firNos.length} FIR${scope.firNos.length === 1 ? "" : "s"}` : ""}`,
+    );
+
+    const gate = scoreGate(hits);
+    if (gate.refused) {
+      return { answer: gate.reason ?? "No relevant evidence found.", sources: [], suggested: SUGGESTED, confidence: "low", trace };
+    }
+
+    const answer = await generateAnswer(resolvedQuestion, gate.accepted, history);
+    mark("Generated grounded answer", `Groq (${process.env.GROQ_MODEL ?? "llama-3.1-8b-instant"})`);
+
+    const { citations, stripped } = verifyCitations(answer, gate.accepted);
+    mark(
+      "Validated citations",
+      `${citations.length} confirmed${stripped ? `, ${stripped} unsupported stripped` : ""}`,
+    );
+
+    return {
+      answer,
+      sources: citations.map((c) => ({ label: c.label, ref: c.id })),
+      suggested: SUGGESTED,
+      confidence: citations.length ? "high" : "medium",
+      trace,
+    };
+  } catch (err) {
+    console.error("[rag] pipeline failed, falling back to deterministic:", String(err));
+    const det = answerQuestion(q);
+    return {
+      answer: det.answer,
+      sources: det.sources,
+      suggested: SUGGESTED,
+      confidence: det.confidence,
+      trace: [...trace, { label: "RAG unavailable", detail: "fell back to deterministic engine", ms: Date.now() - t0 }],
+    };
   }
-  if (subject.role === "burner" && wantsProfile(q)) return profileAnswer("burner");
-
-  // 2. "who should we arrest first" / disruption
-  if (/\b(arrest|remove|take down|target|neutrali[sz]e)\b/i.test(q)) return arrestAnswer();
-
-  // 3. deterministic engine (instant, mathematically grounded, zero hallucination)
-  const det = answerQuestion(q);
-  if (det.confidence === "high") return det;
-
-  // 4. free-form → grounded retrieval (LLM only if a key is configured)
-  return groundedAnswer(q, history);
 }
