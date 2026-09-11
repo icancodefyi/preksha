@@ -5,6 +5,7 @@ import Link from "next/link";
 import { WsShell } from "@/components/ws/ws-shell";
 import { cn } from "@/lib/utils";
 import { Loader2, ShieldCheck, ShieldAlert, FileText, Fingerprint, CheckCircle2, AlertTriangle, ArrowUpRight } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 // Chain item ids are either an FIR number ("0178/2023") or a dataset-category
 // rollup ("CDR" | "FIN" | "DUMP") — lib/graph/enrich.ts evidenceChain().
@@ -26,9 +27,11 @@ interface EvidenceChain {
   chain: EvidenceItem[];
   root: string;
   verified: boolean;
+  anchor?: { network: string; txHash: string; blockNumber: number; blockHash: string; anchoredAt: string; root: string };
 }
 
 export default function EvidencePage() {
+  const { t } = useI18n();
   const [chain, setChain] = useState<EvidenceChain | null>(null);
   const [tampered, setTampered] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -59,28 +62,36 @@ export default function EvidencePage() {
 
   return (
     <WsShell
-      title="Evidence integrity"
-      sub="SHA-256 chain over every source artifact — Section 65B / BSA-2023 admissibility"
+      title={t("evidence.title")}
+      sub={t("evidence.sub")}
       right={
-        <button
-          onClick={runTamperDemo}
-          disabled={loading}
-          className={cn(
-            "inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[12px] font-semibold transition-colors",
-            tampered
-              ? "bg-[#2f7c53] text-white hover:bg-[#276a47]"
-              : "border border-[#c64e27]/40 bg-[#fff7f3] text-[#a8401f] hover:border-[#c64e27]/70",
-          )}
-        >
-          {loading ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : tampered ? (
-            <CheckCircle2 className="size-3.5" />
-          ) : (
-            <AlertTriangle className="size-3.5" />
-          )}
-          {tampered ? "Restore clean chain" : "Demo: tamper an artifact"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={runTamperDemo}
+            disabled={loading}
+            className={cn(
+              "inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[12px] font-semibold transition-colors",
+              tampered
+                ? "bg-[#2f7c53] text-white hover:bg-[#276a47]"
+                : "border border-[#c64e27]/40 bg-[#fff7f3] text-[#a8401f] hover:border-[#c64e27]/70",
+            )}
+          >
+            {loading ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : tampered ? (
+              <CheckCircle2 className="size-3.5" />
+            ) : (
+              <AlertTriangle className="size-3.5" />
+            )}
+            {tampered ? t("evidence.restoreChain") : t("evidence.tamperDemo")}
+          </button>
+          <Link
+            href="/report"
+            className="inline-flex h-8 items-center gap-1.5 rounded-full bg-neutral-950 px-3.5 text-[12px] font-semibold text-white transition-colors hover:bg-neutral-800"
+          >
+            <FileText className="size-3.5" /> {t("common.courtReport")}
+          </Link>
+        </div>
       }
     >
       <div className="mx-auto max-w-3xl space-y-6">
@@ -110,13 +121,12 @@ export default function EvidencePage() {
             >
               {chain?.verified
                 ? tampered
-                  ? "Chain restored — every artifact authentic"
-                  : "Evidence chain verified — no artifact modified"
-                : "Tamper detected — artifact hash no longer matches"}
+                  ? t("evidence.chainRestored")
+                  : t("evidence.chainVerified")
+                : t("evidence.tamperDetected")}
             </p>
             <p className="mt-0.5 text-[12px] leading-[1.5] text-neutral-500">
-              Each artifact is fingerprinted with SHA-256; the root hash commits the whole corpus in one digest
-              an investigator can audit offline.
+              {t("evidence.eachArtifact")}
             </p>
           </div>
           {chain && (
@@ -126,7 +136,7 @@ export default function EvidencePage() {
                 chain.verified ? "bg-[#359462]/10 text-[#2f7c53]" : "bg-[#c64e27]/10 text-[#a8401f]",
               )}
             >
-              {chain.chain.length} artifacts
+              {chain.chain.length} {t("evidence.artifacts")}
             </span>
           )}
         </div>
@@ -169,7 +179,7 @@ export default function EvidencePage() {
                         item.verified ? "bg-[#359462]/10 text-[#2f7c53]" : "bg-[#c64e27]/10 text-[#a8401f]",
                       )}
                     >
-                      {item.verified ? "valid" : "tampered"}
+                      {item.verified ? t("evidence.valid") : t("evidence.tampered")}
                     </span>
                     <ArrowUpRight className="size-3.5 shrink-0 text-neutral-300 opacity-0 transition-opacity group-hover:opacity-100" />
                   </Link>
@@ -182,20 +192,31 @@ export default function EvidencePage() {
 
             <div className="mt-4 rounded-2xl bg-neutral-950 px-4 py-3.5">
               <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
-                <Fingerprint className="size-3" /> Chain root — SHA-256
+                <Fingerprint className="size-3" /> {t("evidence.chainRoot")}
               </p>
               <p className="mt-1.5 break-all font-mono text-[11.5px] tabular-nums text-neutral-300">{chain.root}</p>
             </div>
 
+            {chain.anchor && (
+              <div className="mt-3 rounded-2xl border border-neutral-200 bg-white px-4 py-3.5">
+                <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
+                  <ShieldCheck className="size-3" /> {t("evidence.blockchainAnchor")}
+                </p>
+                <p className="mt-1.5 text-[12.5px] font-medium text-neutral-800">{chain.anchor.network}</p>
+                <p className="mt-1 text-[11.5px] text-neutral-500">
+                  Block #{chain.anchor.blockNumber.toLocaleString("en-IN")} · {new Date(chain.anchor.anchoredAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                </p>
+                <p className="mt-1.5 break-all font-mono text-[10.5px] text-neutral-400">tx {chain.anchor.txHash}</p>
+              </div>
+            )}
+
             <p className="mt-4 text-[11px] leading-[1.6] text-neutral-400">
-              {tampered
-                ? "This is exactly what breaks in court when someone edits an original. Click “Restore clean chain” to re-fingerprint the corpus from the untouched originals."
-                : "Live demo: click “Demo: tamper an artifact” and watch one hash change flip the entire chain to unverified."}
+              {tampered ? t("evidence.tamperWarning") : t("evidence.liveDemo")}
             </p>
           </div>
         ) : (
           <div className="flex items-center justify-center gap-2 rounded-3xl border border-neutral-200 bg-white px-6 py-16 text-[13px] text-neutral-400">
-            <Loader2 className="size-4 animate-spin" /> Hashing evidence…
+            <Loader2 className="size-4 animate-spin" /> {t("evidence.hashing")}
           </div>
         )}
       </div>

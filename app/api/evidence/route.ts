@@ -1,4 +1,5 @@
 import { evidenceChain } from "@/lib/graph/enrich";
+import { anchorEvidence } from "@/lib/graph/blockchain";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -11,5 +12,5 @@ export async function GET(req: Request) {
     const bad = { ...chain, chain: c, verified: c.every((i) => i.sha256.startsWith("tampered") === false) };
     return Response.json(bad);
   }
-  return Response.json(chain);
+  return Response.json({ ...chain, anchor: anchorEvidence() });
 }
