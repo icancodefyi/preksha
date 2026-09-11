@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useI18n, LANGS } from "@/lib/i18n";
 import {
   LayoutDashboard,
   MessagesSquare,
@@ -16,16 +17,18 @@ import {
   ArrowUpRight,
   Menu,
   X,
+  Languages,
+  Check,
 } from "lucide-react";
 
 export const WS_NAV = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard, group: "Workspace" },
-  { href: "/ask", label: "Ask Preksha", icon: MessagesSquare, group: "Workspace" },
-  { href: "/network", label: "Network", icon: Share2, group: "Workspace" },
-  { href: "/cases", label: "Cases", icon: Scale, group: "Workspace" },
-  { href: "/simulate", label: "Replay", icon: Clapperboard, group: "Workspace" },
-  { href: "/suspects", label: "Suspects", icon: Users, group: "Directory" },
-  { href: "/evidence", label: "Evidence", icon: ShieldCheck, group: "Directory" },
+  { href: "/dashboard", labelKey: "nav.overview", icon: LayoutDashboard, group: "Workspace" },
+  { href: "/ask", labelKey: "nav.ask", icon: MessagesSquare, group: "Workspace" },
+  { href: "/network", labelKey: "nav.network", icon: Share2, group: "Workspace" },
+  { href: "/cases", labelKey: "nav.cases", icon: Scale, group: "Workspace" },
+  { href: "/simulate", labelKey: "nav.replay", icon: Clapperboard, group: "Workspace" },
+  { href: "/suspects", labelKey: "nav.suspects", icon: Users, group: "Directory" },
+  { href: "/evidence", labelKey: "nav.evidence", icon: ShieldCheck, group: "Directory" },
 ] as const;
 
 const NAV_GROUPS = ["Workspace", "Directory"] as const;
@@ -49,6 +52,8 @@ export function WsShell({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [stats, setStats] = useState<OverviewStats | null>(null);
+  const [langOpen, setLangOpen] = useState(false);
+  const { t, lang, setLang } = useI18n();
 
   useEffect(() => {
     fetch("/api/overview")
@@ -85,7 +90,7 @@ export function WsShell({
                     active ? "text-white" : "text-neutral-400 group-hover:text-neutral-700",
                   )}
                 />
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             );
           })}
@@ -160,6 +165,39 @@ export function WsShell({
           </div>
           <div className="flex shrink-0 items-center gap-3">
             {right}
+            <div className="relative">
+              <button
+                onClick={() => setLangOpen((v) => !v)}
+                className="flex h-8 items-center gap-1.5 rounded-full border border-neutral-200 px-3 text-[12px] font-medium text-neutral-700 transition-colors hover:bg-neutral-100"
+                title="Language"
+              >
+                <Languages className="size-3.5" />
+                {LANGS.find((l) => l.code === lang)?.label}
+              </button>
+              {langOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setLangOpen(false)} />
+                  <div className="absolute right-0 z-50 mt-1.5 w-40 overflow-hidden rounded-xl border border-neutral-200 bg-white py-1 shadow-lg">
+                    {LANGS.map((l) => (
+                      <button
+                        key={l.code}
+                        onClick={() => {
+                          setLang(l.code);
+                          setLangOpen(false);
+                        }}
+                        className={cn(
+                          "flex w-full items-center justify-between px-3 py-2 text-left text-[13px] hover:bg-neutral-50",
+                          lang === l.code ? "font-semibold text-neutral-950" : "text-neutral-600",
+                        )}
+                      >
+                        {l.label}
+                        {lang === l.code && <Check className="size-3.5" />}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
             <ThemeToggle variant="chat" />
           </div>
         </header>
