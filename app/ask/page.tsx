@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { WS_NAV } from "@/components/ws/ws-shell";
 import { MarkdownAnswer } from "@/components/MarkdownAnswer";
 import { useI18n } from "@/lib/i18n";
+import { speechTagForText } from "@/lib/rag/language";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   ArrowUp,
@@ -297,7 +298,9 @@ function MessageBubble({
             type="button"
             onClick={() => {
             const spoken = spokenForm(a);
-            speakText(spoken, index, (i) => setSpeaking(i === index), speechLang);
+            // Read in the answer's own script: a Devanagari answer must never
+            // go to an English voice (noise), even when the UI is in English.
+            speakText(spoken, index, (i) => setSpeaking(i === index), speechTagForText(spoken, speechLang));
           }}
             title={speaking ? t("ask.stopSpeaking") : t("ask.speak")}
             className="ml-auto inline-flex h-6 items-center gap-1 rounded-full border border-neutral-200 px-2.5 text-[10px] font-medium text-neutral-500 transition-colors hover:border-neutral-950 hover:text-neutral-950"

@@ -17,6 +17,7 @@ export async function generateAnswer(
   question: string,
   context: ScoredChunk[],
   history: ChatTurn[],
+  languageInstruction?: string,
 ): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error("GROQ_API_KEY is not set");
@@ -27,9 +28,12 @@ export async function generateAnswer(
   const historyBlock = history.length
     ? history.slice(-6).map((t) => `${t.role}: ${t.content}`).join("\n")
     : "";
+  // The answer-language directive is part of the system message, not the user
+  // turn — from the vcet build, a user-turn hint was simply ignored.
+  const system = languageInstruction ? `${SYSTEM_PROMPT}\n\n${languageInstruction}` : SYSTEM_PROMPT;
 
   const messages: Groq.Chat.ChatCompletionMessageParam[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: system },
   ];
   if (historyBlock) {
     messages.push({ role: "user", content: `Conversation so far:\n${historyBlock}` });

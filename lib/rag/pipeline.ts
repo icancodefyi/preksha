@@ -17,6 +17,7 @@ import { scoreGate, verifyCitations } from "./hallucination-control";
 import { withResolvedSubject } from "./chat";
 import { answerQuestion } from "@/lib/graph/enrich";
 import { getCase } from "@/lib/data/cases";
+import { answerLanguage } from "./language";
 import type { ChatRequest, ChatResult, TraceStep } from "./types";
 
 export const SUGGESTED = [
@@ -71,7 +72,13 @@ export async function answerChat(req: ChatRequest): Promise<ChatResult> {
       return { answer: gate.reason ?? "No relevant evidence found.", sources: [], suggested: SUGGESTED, confidence: "low", trace };
     }
 
-    const answer = await generateAnswer(resolvedQuestion, gate.accepted, history);
+    // Answer in the language the user wrote in (Devanagari → Hindi/Marathi,
+    // Roman → per-as-asked English/Hinglish). Detected from the raw question,
+    // not the resolved one — resolving "his" inserts English names.
+    const { instruction, label } = answerLanguage(q);
+    mark("Matched answer language", label);
+
+    const answer = await generateAnswer(resolvedQuestion, gate.accepted, history, instruction);
     mark("Generated grounded answer", `Groq (${process.env.GROQ_MODEL ?? "llama-3.1-8b-instant"})`);
 
     const { citations, stripped } = verifyCitations(answer, gate.accepted);
