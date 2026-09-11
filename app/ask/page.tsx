@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { WS_NAV } from "@/components/ws/ws-shell";
 import { MarkdownAnswer } from "@/components/MarkdownAnswer";
+import { useI18n } from "@/lib/i18n";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   ArrowUp,
@@ -26,6 +27,8 @@ import {
   Activity,
   Fingerprint,
   SquarePen,
+  Volume2,
+  Square,
 } from "lucide-react";
 
 interface AskSource {
@@ -105,6 +108,7 @@ function QueryTrace({
   open: boolean;
   onToggle: () => void;
 }) {
+  const { t } = useI18n();
   const latest = steps[steps.length - 1];
   return (
     <div className="overflow-hidden rounded-2xl border border-neutral-200/80 bg-white">
@@ -124,7 +128,7 @@ function QueryTrace({
             live && "shimmer",
           )}
         >
-          {live ? (latest?.label ?? "Analysing the question…") : "How this was answered"}
+          {live ? (latest?.label ?? "Analysing the question…") : t("ask.howAnswered")}
         </span>
         {!live && steps.length > 0 && (
           <span className="shrink-0 text-[11px] tabular-nums text-neutral-400">
@@ -171,6 +175,30 @@ function MessageBubble({ message, onFollowUp }: { message: ChatMessage; onFollow
   const isUser = message.role === "user";
   const a = message.structured;
   const [openTrace, setOpenTrace] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const { t, speechLang } = useI18n();
+
+  const speak = (text: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
+    }
+    const plain = text.replace(/[#*_`\[\]()]/g, " ");
+    const u = new SpeechSynthesisUtterance(plain);
+    u.lang = speechLang;
+    const voices = window.speechSynthesis.getVoices();
+    const best =
+      voices.find((v) => v.lang === speechLang) ??
+      voices.find((v) => v.lang.startsWith(speechLang.slice(0, 2)));
+    if (best) u.voice = best;
+    u.onend = () => setSpeaking(false);
+    u.onerror = () => setSpeaking(false);
+    setSpeaking(true);
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  };
 
   if (isUser) {
     return (
@@ -206,6 +234,15 @@ function MessageBubble({ message, onFollowUp }: { message: ChatMessage; onFollow
               {CONFIDENCE_LABEL[a.confidence]}
             </span>
           </span>
+          <button
+            type="button"
+            onClick={() => speak(a.answer)}
+            title={speaking ? t("ask.stopSpeaking") : t("ask.speak")}
+            className="ml-auto inline-flex h-6 items-center gap-1 rounded-full border border-neutral-200 px-2.5 text-[10px] font-medium text-neutral-500 transition-colors hover:border-neutral-950 hover:text-neutral-950"
+          >
+            {speaking ? <Square className="size-3" /> : <Volume2 className="size-3" />}
+            {speaking ? t("ask.stopSpeaking") : t("ask.speak")}
+          </button>
         </div>
 
         <div className="space-y-5 px-5 py-5 sm:px-7 sm:py-6">
@@ -213,7 +250,7 @@ function MessageBubble({ message, onFollowUp }: { message: ChatMessage; onFollow
 
           {a.suggested.length > 0 && (
             <div className="space-y-2">
-              <SectionLabel>Follow up</SectionLabel>
+              <SectionLabel>{t("ask.followUp")}</SectionLabel>
               <div className="flex flex-wrap gap-2">
                 {a.suggested.map((q) => (
                   <button
@@ -232,7 +269,7 @@ function MessageBubble({ message, onFollowUp }: { message: ChatMessage; onFollow
 
         {a.sources.length > 0 && (
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-neutral-100 bg-neutral-50/70 px-5 py-3 sm:px-7">
-            <SectionLabel>Sources</SectionLabel>
+            <SectionLabel>{t("ask.sources")}</SectionLabel>
             {a.sources.map((c, i) => (
               <span
                 key={i}
@@ -255,8 +292,17 @@ function MessageBubble({ message, onFollowUp }: { message: ChatMessage; onFollow
 }
 
 export default function AskPage() {
+  return (
+    <Suspense fallback={null}>
+      <AskPageInner />
+    </Suspense>
+  );
+}
+
+function AskPageInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { t, speechLang } = useI18n();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -377,7 +423,7 @@ export default function AskPage() {
       return;
     }
     const recognition = new Ctor();
-    recognition.lang = "en-IN";
+    recognition.lang = speechLang;
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     recognition.onresult = (event) => {
@@ -501,7 +547,7 @@ export default function AskPage() {
                 )}
               >
                 <item.icon className={cn("size-4", active ? "text-neutral-950" : "text-neutral-400")} />
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             );
           })}
@@ -719,7 +765,7 @@ export default function AskPage() {
                     handleSubmit(input);
                   }
                 }}
-                placeholder="Ask about a suspect, a transaction, a tower, a timeline…"
+                placeholder={t("ask.placeholder")}
                 disabled={loading}
                 className="max-h-[168px] w-full resize-none bg-transparent px-3 pb-1 pt-2 text-[14.5px] leading-[1.55] tracking-[-0.01em] text-neutral-950 placeholder:text-neutral-400 focus:outline-none disabled:opacity-50"
               />
@@ -728,7 +774,7 @@ export default function AskPage() {
                   type="button"
                   onClick={startListening}
                   disabled={loading || listening}
-                  title={listening ? "Listening…" : "Voice input"}
+                  title={listening ? t("ask.listening") : t("ask.voice")}
                   className={cn(
                     "flex size-8 items-center justify-center rounded-full transition-colors",
                     listening
@@ -738,7 +784,7 @@ export default function AskPage() {
                 >
                   <Mic className={cn("size-4", listening && "animate-pulse")} />
                 </button>
-                <span className="ml-auto hidden pr-1 text-[10.5px] text-neutral-300 lg:block">Enter to send</span>
+                <span className="ml-auto hidden pr-1 text-[10.5px] text-neutral-300 lg:block">{t("ask.send")}</span>
                 <button
                   type="submit"
                   disabled={!input.trim() || loading}
