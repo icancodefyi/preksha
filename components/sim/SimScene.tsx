@@ -526,8 +526,8 @@ function makeRoom(sx: number, sz: number): RoomSet {
   backdrop.position.set(0, H / 2, hd + 1.1);
   g.add(backdrop);
 
-  // ceiling lights
-  const lightMat = new THREE.MeshBasicMaterial({ color: 0xfff2d0 });
+  // ceiling lights — soft, warm fixtures (not pure-white hot spots)
+  const lightMat = new THREE.MeshBasicMaterial({ color: 0x8f8268 });
   for (let i = 0; i < 3; i++) {
     const panel = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.1, 0.5), lightMat);
     panel.position.set(-2.4 + i * 2.4, H - 0.12, -1);
@@ -537,7 +537,7 @@ function makeRoom(sx: number, sz: number): RoomSet {
   // back-wall sign
   const sign = new THREE.Mesh(
     new THREE.BoxGeometry(4.4, 0.7, 0.15),
-    new THREE.MeshStandardMaterial({ color: 0xffd68c, emissive: 0xffd68c, emissiveIntensity: 1.2 }),
+    new THREE.MeshStandardMaterial({ color: 0xffd68c, emissive: 0xffd68c, emissiveIntensity: 0.7 }),
   );
   sign.position.set(0, 3.6, -hd + 0.18);
   g.add(sign);
@@ -573,7 +573,7 @@ function makeRoom(sx: number, sz: number): RoomSet {
         new THREE.MeshStandardMaterial({
           color: gemColors[k],
           emissive: gemColors[k],
-          emissiveIntensity: 1.6,
+          emissiveIntensity: 0.9,
           roughness: 0.2,
         }),
       );
@@ -596,7 +596,7 @@ function makeRoom(sx: number, sz: number): RoomSet {
         new THREE.MeshStandardMaterial({
           color: gemColors[k % gemColors.length],
           emissive: gemColors[k % gemColors.length],
-          emissiveIntensity: 1.3,
+          emissiveIntensity: 0.8,
           roughness: 0.2,
         }),
       );
@@ -862,7 +862,6 @@ export default function SimScene({
     let riderA!: THREE.Group;
     let pillion!: THREE.Group;
     let riderB!: THREE.Group;
-    let copsGroup!: THREE.Group;
 
     if (data.bespoke) {
       // --- the store (exterior shell, hidden during the interior cut)
@@ -969,14 +968,6 @@ export default function SimScene({
       riderB.position.set(0, 0.55, -0.05);
       riderB.visible = false;
       bikeB.group.add(riderB);
-
-      // street dressing — a small parked police presence across from the
-      // store, visible in the wide establishing/escape shots
-      copsGroup = new THREE.Group();
-      copsGroup.position.set(data.scene.x + 5.5, 0, data.scene.z - 3.2);
-      copsGroup.rotation.y = -0.6;
-      scene.add(copsGroup);
-      loadModel("/models/cops_and_robbers.glb", 1.4, (m) => copsGroup.add(m));
     }
 
     // --- exterior people
@@ -1374,14 +1365,13 @@ export default function SimScene({
       financeGroup.visible = wide || money;
       ground.visible = !interior;
       if (data.bespoke) {
-        store.visible = wide || escape;
+        store.visible = !interior;
         room.visible = interior;
-        roomAmbient.intensity = interior ? 0.6 : 0;
-        roomLight.intensity = interior ? 190 : 0;
-        roomFill.intensity = interior ? 95 : 0;
+        roomAmbient.intensity = interior ? 0.9 : 0;
+        roomLight.intensity = interior ? 100 : 0;
+        roomFill.intensity = interior ? 35 : 0;
         bikeA.group.visible = wide || escape;
         bikeB.group.visible = wide || (escape && !plate);
-        copsGroup.visible = !interior;
       }
     }
 
