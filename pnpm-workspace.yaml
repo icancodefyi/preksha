@@ -1,3 +1,12 @@
-ignoredBuiltDependencies:
-  - sharp
-  - unrs-resolver
+# Preksha — pnpm monorepo workspace.
+# The Next.js app lives at the repo root; `packages/*` is reserved for future
+# extraction (e.g. the RAG / graph engine as shared packages). Everything the
+# demo needs runs with a single command:
+#
+#   pnpm install && pnpm dev
+#
+# The RAG is in-app (lib/rag) on purpose: it answers *over* the in-memory
+# graph engine + seed corpus, so there is no separate service, vector DB, or
+# API key to start — `pnpm dev` is the whole demo.
+packages:
+  - "packages/*"

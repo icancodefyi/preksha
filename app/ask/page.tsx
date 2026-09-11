@@ -392,6 +392,7 @@ export default function AskPage() {
 
   const handleSubmit = async (text: string) => {
     if (!text.trim() || loading) return;
+    const history = messages.map((m) => ({ role: m.role, content: m.content }));
     setMessages((prev) => [...prev, { role: "user", content: text }]);
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
@@ -400,9 +401,11 @@ export default function AskPage() {
     setLiveTraceOpen(true);
 
     try {
-      const qs = new URLSearchParams({ q: text });
-      if (caseId) qs.set("case", caseId);
-      const res = await fetch(`/api/ask?${qs.toString()}`);
+      const res = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: text, history, case: caseId ?? undefined }),
+      });
       if (!res.ok) {
         const err = await res.text();
         setMessages((prev) => [

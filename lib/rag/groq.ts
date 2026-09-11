@@ -19,10 +19,18 @@ export interface GroqResult {
 // already-retrieved evidence passed in as data; it never originates facts
 // and its output is citation-validated by the caller afterward, not trusted
 // as-is (see lib/rag/localAnswer.ts).
-export async function generateGrounded(question: string, evidenceBlock: string): Promise<GroqResult> {
+export async function generateGrounded(
+  question: string,
+  evidenceBlock: string,
+  history?: string,
+): Promise<GroqResult> {
   const apiKey = process.env.GROQ_API_KEY;
   const model = process.env.GROQ_MODEL;
   if (!apiKey || !model) throw new Error("GROQ_API_KEY / GROQ_MODEL are not set");
+
+  const historyBlock = history
+    ? `\n\nCONVERSATION (for context — answer the final QUESTION only):\n${history}`
+    : "";
 
   const res = await fetch(GROQ_URL, {
     method: "POST",
@@ -31,7 +39,7 @@ export async function generateGrounded(question: string, evidenceBlock: string):
       model,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: `EVIDENCE:\n${evidenceBlock}\n\nQUESTION: ${question}` },
+        { role: "user", content: `EVIDENCE:\n${evidenceBlock}${historyBlock}\n\nQUESTION: ${question}` },
       ],
       temperature: 0.1,
     }),
